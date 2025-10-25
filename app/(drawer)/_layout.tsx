@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { useNavigation, useRouter } from "expo-router";
 import { Drawer } from "expo-router/drawer";
 import { useState } from "react";
-import { Dimensions, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Dimensions, Platform, Pressable, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useAuth } from "../../context/AuthContext";
 
@@ -91,7 +91,6 @@ function CustomDrawerContent() {
     { title: "Recursos Disponbiles", path: '/(tabs)/stackhome' },
     { title: "Agenda", path: '/(tabs)/stackhome' },
     { title: "Actualización Datos", path: '/(tabs)/stackhome' },
-    { title: "Light Mode", path: '/(tabs)/stackhome' },
   ];
 
   return (
@@ -117,7 +116,26 @@ function CustomDrawerContent() {
               <View style={styles.dividerItems} />
             </View>
           ))}
-
+        
+        <View style={styles.themeContainer}>
+          <View style={styles.themeTextContainer}>
+            <MaterialCommunityIcons 
+              name={isDarkMode ? "weather-night" : "white-balance-sunny"} 
+              size={24} 
+              color="#1a1a1a" 
+            />
+            <Text style={styles.themeText}>
+              {isDarkMode ? "Modo Oscuro" : "Modo Claro"}
+            </Text>
+          </View>
+          <Switch
+            trackColor={{ false: "#000000", true: "gray" }}
+            thumbColor={isDarkMode ? "#ffffff" : "#ffffff"}
+            ios_backgroundColor="#3e3e3e"
+            onValueChange={toggleTheme}
+            value={isDarkMode}
+          />
+        </View> 
 
         </View>
       </View>
