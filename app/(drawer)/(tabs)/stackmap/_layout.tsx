@@ -17,7 +17,7 @@ export default function stackmap() {
        <Stack.Screen
               name="index"
               options={{
-                headerTitle: "Inicio",
+                headerTitle: "Mapa",
                   headerLeft: () => (
                     Platform.OS === "ios" ? (
                       <TouchableOpacity 

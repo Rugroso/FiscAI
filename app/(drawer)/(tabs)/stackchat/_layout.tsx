@@ -3,7 +3,8 @@ import { DrawerActions, useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { Stack } from "expo-router";
 import React from "react";
-import { Platform, TouchableOpacity } from "react-native";
+import { Platform, Text, TouchableOpacity, View } from "react-native";
+
 export default function stackmap() {
     const navigation = useNavigation();
 
@@ -17,7 +18,12 @@ export default function stackmap() {
        <Stack.Screen
               name="index"
               options={{
-                headerTitle: "Chat",
+                headerTitle: () => (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Text style={{ fontSize: 24, fontWeight: "bold", color: "#000000" }}>Fisc</Text>
+                    <Text style={{ fontSize: 24, fontWeight: "bold", color: "#FF0000" }}>AI</Text>
+                  </View>
+                ),
                   headerLeft: () => (
                     Platform.OS === "ios" ? (
                       <TouchableOpacity 
