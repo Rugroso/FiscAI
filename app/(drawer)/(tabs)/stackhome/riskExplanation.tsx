@@ -1,10 +1,8 @@
 import { RiskMeter } from "@/components/riskmeter";
 import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import React from "react";
 import {
-  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -13,10 +11,9 @@ import {
   View,
 } from "react-native";
 
-export default function HomeScreen() {
-  const router = useRouter();
+export default function riskExplain() {
   const { user } = useAuth();
-  const score = 67;
+  const score = 100;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -41,10 +38,6 @@ export default function HomeScreen() {
 
         {/* Tarjeta de RISK */}
         <View style={styles.card}>
-            <Pressable
-        onPress={() => router.push("/(drawer)/(tabs)/stackhome/riskExplanation")}
-      >
-
           <View style={styles.riskContainer}>
             <View style={styles.riskGauge}>
               <RiskMeter score={score} /> 
@@ -57,7 +50,6 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.cardButtonBottom}>
             <Feather name="external-link" size={20} color="#FF0000" />
           </TouchableOpacity>
-          </Pressable>
         </View>
 
         {/* Tarjeta de Próximos Eventos */}
