@@ -55,7 +55,7 @@ export default function StackHomeLayout() {
               }}
             />
        <Stack.Screen
-              name="roadmap"
+              name="beneficios"
               options={{
                 headerTitle: () => (
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -63,7 +63,6 @@ export default function StackHomeLayout() {
                     <Text style={{ fontSize: 24, fontWeight: "bold", color: "#FF0000" }}>AI</Text>
                   </View>
                 ),
-                headerTitleAlign: 'center'
               }}
             />
        <Stack.Screen name="doctor" options={{ headerTitle: "Detalle" }} />

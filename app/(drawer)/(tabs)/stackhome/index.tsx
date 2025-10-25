@@ -2,11 +2,14 @@ import { RiskMeter } from "@/components/riskmeter";
 import Roadmap, { RoadmapStep } from "@/components/roadmap";
 import GoogleCalendar from "@/components/ui/calendar";
 import { useProgress } from "@/context/ProgressContext";
+import CarouselCard from "@/components/ui/carouselCard";
+
 
 import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
+
 import {
   Pressable,
   SafeAreaView,
@@ -48,6 +51,13 @@ export default function HomeScreen() {
     }
   };
 
+  const cardData = [
+  { id: '1', title1: 'Beneficios', title2: 'Créditos' },
+  { id: '2', title1: 'Requisitos', title2: 'Procedimiento' },
+  { id: '3', title1: 'Contacto', title2: 'Soporte' },
+  { id: '4', title1: 'Duración', title2: 'Plazos' },
+];
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -88,6 +98,7 @@ export default function HomeScreen() {
         onPress={() => router.push("/(drawer)/(tabs)/stackhome/riskExplanation")}
       >
 
+
           <View style={styles.riskContainer}>
             <View style={styles.riskGauge}>
               <RiskMeter score={score} /> 
@@ -102,17 +113,17 @@ export default function HomeScreen() {
           </TouchableOpacity>
           </Pressable>
         </View>
-
-        {/* Tarjeta de Próximos Eventos */}
         <View style={styles.card}>
-          <View style={styles.eventsContainer}>
-            
-              <GoogleCalendar/>
-          </View>
-          <TouchableOpacity style={styles.cardButtonBottom}>
-            <Feather name="external-link" size={20} color="#FF0000" />
-          </TouchableOpacity>
+          <Pressable
+            onPress={() => router.push("/(drawer)/(tabs)/stackhome/beneficios")}
+          >
+          <CarouselCard data={cardData} interval={2500} />
+          </Pressable>
         </View>
+        <View style={styles.card}>
+          <Text></Text>
+        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
