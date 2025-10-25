@@ -1,17 +1,17 @@
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 
@@ -54,7 +54,9 @@ export default function LoginScreen() {
               resizeMode="contain"
             /> */}
           </View>
-          <Text style={styles.title}>Bienvenido a FiscAI</Text>
+            <Text style={styles.title}>
+            Bienvenido a Fisc<Text style={{ color: "#E80000" }}>AI</Text>
+            </Text>
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Correo Electrónico</Text>
