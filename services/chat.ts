@@ -1,4 +1,5 @@
 import { supabase } from "@/config/supabase";
+import { url, ENDPOINTS } from "@/config/api";
 
 export type Role = "user" | "assistant" | "system" | "tool";
 
@@ -136,8 +137,8 @@ async function processMessageWithLambda(
       timestamp: msg.created_at,
     }));
 
-    // Basado en el patrón de "análisis personalizado": llamada directa al API Gateway
-    const response = await fetch("https://d8pgui6dhb.execute-api.us-east-2.amazonaws.com/chat", {
+    // Usar la URL configurada desde .env para el bridge MCP
+    const response = await fetch(url(ENDPOINTS.chat), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
