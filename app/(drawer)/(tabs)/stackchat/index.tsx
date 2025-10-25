@@ -1,17 +1,26 @@
 import { useAuth } from "@/context/AuthContext";
+import {
+  createNewConversation,
+  ensureConversationForUser,
+  listMessages,
+  sendUserMessage,
+  subscribeToMessages,
+  toUiMessage,
+} from "@/services/chat";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 interface Message {
@@ -24,39 +33,157 @@ interface Message {
 export default function ChatScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      text: `Hola! Soy Juan Pablo, en que te puedo ayudar`,
-      isUser: false,
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
+  const [dbReady, setDbReady] = useState<boolean>(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const unsubRef = useRef<null | (() => void)>(null);
 
-  const sendMessage = () => {
+  // Bootstrap conversation + realtime
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const conv = await ensureConversationForUser(user.id);
+        if (cancelled) return;
+        setConversationId(conv.id);
+        const rows = await listMessages(conv.id);
+        if (cancelled) return;
+        setMessages(rows.map((m) => toUiMessage(m, user.id)));
+
+        // Subscribe to realtime changes
+        unsubRef.current = subscribeToMessages(conv.id, (row, type) => {
+          setMessages((prev) => {
+            const ui = toUiMessage(row, user.id);
+            if (type === "DELETE") {
+              return prev.filter((m) => m.id !== ui.id);
+            }
+            // INSERT or UPDATE -> upsert by id
+            const idx = prev.findIndex((m) => m.id === ui.id);
+            if (idx === -1) return [...prev, ui];
+            const copy = prev.slice();
+            copy[idx] = ui;
+            return copy;
+          });
+        });
+
+        setDbReady(true);
+      } catch (err) {
+        console.warn("[Chat] DB not ready or tables missing:", err);
+        // Seed a local welcome message when DB is unavailable
+        setMessages([
+          {
+            id: "welcome",
+            text: `Hola! Soy Juan Pablo, ¿en qué te puedo ayudar?`,
+            isUser: false,
+            timestamp: new Date(),
+          },
+        ]);
+        setDbReady(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (unsubRef.current) {
+        unsubRef.current();
+        unsubRef.current = null;
+      }
+    };
+  }, [user?.id]);
+
+  const sendMessage = async () => {
     if (inputText.trim() === "") return;
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: inputText,
-      isUser: true,
-      timestamp: new Date(),
-    };
-
-    setMessages([...messages, newMessage]);
+    const content = inputText;
     setInputText("");
 
-    // Simular respuesta del bot
-    setTimeout(() => {
-      const botResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "Gracias por tu mensaje. ¿En qué más puedo ayudarte?",
-        isUser: false,
+    if (dbReady && conversationId && user?.id) {
+      try {
+        await sendUserMessage(conversationId, user.id, content);
+      } catch (err) {
+        console.error("Error enviando mensaje a Supabase:", err);
+        // Fallback local append
+        const localMsg: Message = {
+          id: Date.now().toString(),
+          text: content,
+          isUser: true,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, localMsg]);
+      }
+    } else {
+      // Local-only fallback when DB not ready
+      const localMsg: Message = {
+        id: Date.now().toString(),
+        text: content,
+        isUser: true,
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, botResponse]);
-    }, 1000);
+      setMessages((prev) => [...prev, localMsg]);
+
+      // Simular respuesta del bot en modo local
+      setTimeout(() => {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            text: "Gracias por tu mensaje. ¿En qué más puedo ayudarte?",
+            isUser: false,
+            timestamp: new Date(),
+          },
+        ]);
+      }, 800);
+    }
+  };
+
+  const startNewConversation = () => {
+    Alert.alert(
+      "Nueva conversación",
+      "¿Quieres empezar una nueva conversación? El historial actual se guardará.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Iniciar nueva",
+          style: "destructive",
+          onPress: async () => {
+            if (!user?.id) return;
+            try {
+              // Unsubscribe from current conversation
+              if (unsubRef.current) {
+                unsubRef.current();
+                unsubRef.current = null;
+              }
+
+              // Create new conversation
+              const newConv = await createNewConversation(user.id);
+              setConversationId(newConv.id);
+              setMessages([]);
+
+              // Subscribe to new conversation
+              unsubRef.current = subscribeToMessages(newConv.id, (row, type) => {
+                setMessages((prev) => {
+                  const ui = toUiMessage(row, user.id);
+                  if (type === "DELETE") {
+                    return prev.filter((m) => m.id !== ui.id);
+                  }
+                  const idx = prev.findIndex((m) => m.id === ui.id);
+                  if (idx === -1) return [...prev, ui];
+                  const copy = prev.slice();
+                  copy[idx] = ui;
+                  return copy;
+                });
+              });
+            } catch (err) {
+              console.error("[Chat] Error creating new conversation:", err);
+              Alert.alert("Error", "No se pudo crear una nueva conversación");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const formatTime = (date: Date) => {
@@ -98,6 +225,14 @@ export default function ChatScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
+        {/* Connection banner */}
+        {!dbReady && (
+          <View style={[styles.banner, { backgroundColor: "#FFF4E5", borderColor: "#FFD8A8" }]}> 
+            <Text style={{ color: "#8B5E00" }}>
+              Modo local: habilita las tablas 'conversations' y 'messages' en Supabase para chat en tiempo real.
+            </Text>
+          </View>
+        )}
 
         {/* Bot Info */}
         <View style={styles.botInfo}>
@@ -106,9 +241,17 @@ export default function ChatScreen() {
           </View>
           <View style={styles.botTextContainer}>
             <Text style={styles.botName}>
-              {'Juan Pablo'} - <Text style={styles.botRole}>Asistente Virtual</Text>
+              {"Juan Pablo"} - <Text style={styles.botRole}>Asistente Virtual</Text>
             </Text>
           </View>
+          {dbReady && messages.length > 0 && (
+            <TouchableOpacity
+              style={styles.newChatButton}
+              onPress={startNewConversation}
+            >
+              <MaterialCommunityIcons name="plus-circle" size={28} color="#FF0000" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Chat Started Info */}
@@ -211,6 +354,9 @@ const styles = StyleSheet.create({
   botTextContainer: {
     flex: 1,
   },
+  newChatButton: {
+    padding: 8,
+  },
   botName: {
     fontSize: 16,
     fontWeight: "600",
@@ -300,5 +446,12 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
+  },
+  banner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
   },
 });

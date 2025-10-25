@@ -1,17 +1,18 @@
 import { useAuth } from "@/context/AuthContext";
+import { useProgress } from "@/context/ProgressContext";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Linking,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 
 interface ProfileData {
@@ -58,6 +59,7 @@ interface ApiResponse {
 export default function InformalScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { markDone, setActive } = useProgress();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<ApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +105,10 @@ export default function InformalScreen() {
 
       const result: ApiResponse = await response.json();
       setData(result);
+      // Al obtener recomendación, marcamos Perfil y Régimen como completados
+      markDone('perfil');
+      markDone('regimen');
+      setActive('obligaciones');
     } catch (err) {
       console.error("Error:", err);
       setError(err instanceof Error ? err.message : "Error desconocido");

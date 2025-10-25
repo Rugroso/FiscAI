@@ -1,5 +1,7 @@
 import { RiskMeter } from "@/components/riskmeter";
+import Roadmap, { RoadmapStep } from "@/components/roadmap";
 import GoogleCalendar from "@/components/ui/calendar";
+import { useProgress } from "@/context/ProgressContext";
 
 import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
@@ -18,7 +20,33 @@ import {
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { state, setActive } = useProgress();
   const score = 67;
+  const roadmapSteps: RoadmapStep[] = [
+    { key: 'perfil', title: 'Perfil fiscal', subtitle: 'Cuéntanos de tu empresa', status: state.perfil },
+    { key: 'regimen', title: 'Régimen óptimo', subtitle: 'Recomendación', status: state.regimen },
+    { key: 'obligaciones', title: 'Obligaciones', subtitle: 'Configura y cumple', status: state.obligaciones },
+    { key: 'calendario', title: 'Calendario SAT', subtitle: 'Fechas clave', status: state.calendario },
+    { key: 'riesgos', title: 'Riesgo fiscal', subtitle: 'Mitiga y mejora', status: state.riesgos },
+  ];
+
+  const onRoadmapPress = (key: string) => {
+    setActive(key as any);
+    switch (key) {
+      case 'perfil':
+      case 'regimen':
+        router.push('/(drawer)/(tabs)/stackhome/informal');
+        break;
+      case 'obligaciones':
+      case 'riesgos':
+        router.push('/(drawer)/(tabs)/stackhome/riskExplanation');
+        break;
+      case 'calendario':
+      default:
+        // Por ahora mantenemos en Home; el calendario se muestra abajo.
+        break;
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -40,6 +68,18 @@ export default function HomeScreen() {
               <Feather name="external-link" size={20} color="#FF0000" />
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Tarjeta de Roadmap (resumen) */}
+        <View style={styles.card}>
+          <Roadmap
+            steps={roadmapSteps}
+            currentIndex={state.currentIndex}
+            variant="summary"
+            title="Avance de formalización"
+            showPercent
+            onOpenFull={() => router.push('/(drawer)/(tabs)/stackhome/roadmap')}
+          />
         </View>
 
         {/* Tarjeta de RISK */}

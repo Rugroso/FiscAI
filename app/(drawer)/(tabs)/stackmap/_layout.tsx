@@ -1,11 +1,11 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { DrawerActions, useNavigation } from "@react-navigation/native";
+import { DrawerActions } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
-import { Stack } from "expo-router";
+import { Stack, useNavigation } from "expo-router";
 import React from "react";
 import { Platform, Text, TouchableOpacity, View } from "react-native";
 
-export default function stackmap() {
+export default function StackMapLayout() {
     const navigation = useNavigation();
 
     const openDrawer = () => {

@@ -1,21 +1,29 @@
 import { RiskMeter } from "@/components/riskmeter";
 import { useAuth } from "@/context/AuthContext";
+import { useProgress } from "@/context/ProgressContext";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import {
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function riskExplain() {
   const router = useRouter();
   const { user } = useAuth();
   const score = 100;
+  const { markDone, setActive } = useProgress();
+
+  useEffect(() => {
+    // Al visitar esta pantalla, marcamos riesgos como completado y activamos meta
+    markDone('riesgos');
+    setActive('meta');
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
