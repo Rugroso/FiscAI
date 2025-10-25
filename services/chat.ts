@@ -224,10 +224,10 @@ function extractAssistantText(resp: any): string | null {
   // En el bridge, el cuerpo esperado es { success, data, ... }
   const payload = resp?.data ?? resp;
 
-  // Si es string directo
+  // 1) Si es string directo
   if (typeof payload === "string") return payload;
 
-  // Tipos comunes
+  // 2) Candidatos comunes directos
   const candidates: Array<any> = [
     payload?.text,
     payload?.message,
@@ -240,18 +240,85 @@ function extractAssistantText(resp: any): string | null {
     if (typeof c === "object" && c?.text && typeof c.text === "string") return c.text;
   }
 
-  // Formato estilo MCP content[]
+  // 3) Formato MCP: content puede venir anidado (p.ej. [[{ type: 'text', text: '...' }]])
+  const getTextFromParts = (parts: any[]): string | null => {
+    for (const part of parts) {
+      if (!part) continue;
+      // Si es otro array, revisar recursivamente
+      if (Array.isArray(part)) {
+        const t = getTextFromParts(part);
+        if (t) return t;
+      } else if (typeof part === "object") {
+        if (part.type === "text" && typeof part.text === "string" && part.text.trim()) {
+          return part.text;
+        }
+        if (typeof part.text === "string" && part.text.trim()) return part.text;
+      } else if (typeof part === "string" && part.trim()) {
+        return part;
+      }
+    }
+    return null;
+  };
+
   if (Array.isArray(payload?.content)) {
-    const textPart = payload.content.find((p: any) => p?.type === "text" && typeof p?.text === "string");
-    if (textPart?.text) return textPart.text;
+    const textFromContent = getTextFromParts(payload.content);
+    if (textFromContent) return textFromContent;
   }
 
-  // Como fallback, serializar algo breve
+  // 4) structuredContent: tratar de extraer texto de campos comunes
+  const sc = payload?.structuredContent;
+  if (sc) {
+    // Mensaje humano-para-humano (no siempre es la respuesta principal)
+    let fallbackMsg: string | null = null;
+    if (typeof sc.message === "string" && sc.message.trim()) {
+      // Evitar devolver solo un mensaje meta si hay data útil
+      // lo usaremos solo si no hay texto mejor
+      fallbackMsg = sc.message as string;
+    }
+    const data = sc.data;
+    // Si data es string directa
+    if (typeof data === "string" && data.trim()) return data;
+    // Si data es objeto o array, buscar campos text/answer/content
+    const deep = findFirstString(data);
+    if (deep) return deep;
+    if (fallbackMsg) return fallbackMsg;
+  }
+
+  // 5) buscar en profundidad por el primer string razonable
+  const deepAny = findFirstString(payload);
+  if (deepAny) return deepAny;
+
+  // 6) Fallback: serializar acotado (evita payloads enormes)
   try {
-    return JSON.stringify(payload);
+    const s = JSON.stringify(payload);
+    return s.length > 4000 ? s.slice(0, 4000) + "…" : s;
   } catch {
     return null;
   }
+}
+
+function findFirstString(obj: any): string | null {
+  if (!obj) return null;
+  if (typeof obj === "string" && obj.trim()) return obj;
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      const s = findFirstString(item);
+      if (s) return s;
+    }
+    return null;
+  }
+  if (typeof obj === "object") {
+    // Priorizar campos comunes
+    const keysPriority = ["text", "answer", "content", "message", "summary", "output", "result"];
+    for (const k of keysPriority) {
+      if (typeof obj[k] === "string" && obj[k].trim()) return obj[k];
+    }
+    for (const key of Object.keys(obj)) {
+      const s = findFirstString(obj[key]);
+      if (s) return s;
+    }
+  }
+  return null;
 }
 
 export type Unsubscribe = () => void;
