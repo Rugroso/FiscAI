@@ -54,6 +54,17 @@ export default function stackmap() {
                 ),
               }}
             />
+       <Stack.Screen
+              name="beneficios"
+              options={{
+                headerTitle: () => (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Text style={{ fontSize: 24, fontWeight: "bold", color: "#000000" }}>Fisc</Text>
+                    <Text style={{ fontSize: 24, fontWeight: "bold", color: "#FF0000" }}>AI</Text>
+                  </View>
+                ),
+              }}
+            />
        <Stack.Screen name="doctor" options={{ headerTitle: "Detalle" }} />
     </Stack>
   );
