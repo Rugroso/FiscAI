@@ -1,6 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { Platform, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { Colors } from '@/constants/theme';
@@ -9,7 +11,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 export default function TabLayout() {
   const colorScheme = useColorScheme();
 
-  return (
+  const TabsContent = (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
@@ -19,7 +21,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          href: null, // Ocultar esta tab de la navegación
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -50,5 +52,15 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+  );
+
+  return Platform.OS === 'android' ? (
+    <SafeAreaView style={{ flex: 1 }}>
+      {TabsContent}
+    </SafeAreaView>
+  ) : (
+    <View style={{ flex: 1 }}>
+      {TabsContent}
+    </View>
   );
 }
