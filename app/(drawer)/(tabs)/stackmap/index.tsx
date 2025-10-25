@@ -6,17 +6,17 @@ import * as Location from "expo-location"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import React, { useEffect, useRef, useState } from "react"
 import {
-    ActivityIndicator,
-    Animated,
-    Dimensions,
-    Image,
-    Linking,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  Image,
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native"
 import MapView, { Callout, Marker, Region } from "react-native-maps"
 
@@ -214,47 +214,50 @@ export default function BankMap() {
     }
   }
 
-  const openInGoogleMaps = (place: Place) => {
+  const openInGoogleMaps = async (place: Place) => {
     console.log('🗺️ openInGoogleMaps llamado para:', place.name)
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     
-    // Crear query con el nombre y dirección del lugar para mejor identificación
-    const placeQuery = encodeURIComponent(`${place.name}, ${place.vicinity}`)
-    
-    const url = Platform.select({
-      // iOS: Abrir Apple Maps con el query del lugar
-      ios: `maps://?q=${placeQuery}&saddr=Current%20Location`,
-      // Android: Abrir Google Maps con el query del lugar para navegar
-      android: `https://www.google.com/maps/search/?api=1&query=${placeQuery}&query_place_id=${place.placeId}`,
-      // Web: Abrir Google Maps web con el query del lugar
-      default: `https://www.google.com/maps/search/?api=1&query=${placeQuery}&query_place_id=${place.placeId}`,
-    })
-    
-    console.log('📱 Platform:', Platform.OS)
-    console.log('🔗 URL generada:', url)
-    
-    Linking.canOpenURL(url)
-      .then((supported) => {
-        console.log('✅ URL soportada:', supported)
-        if (supported) {
-          return Linking.openURL(url)
+    if (Platform.OS === 'ios') {
+      // En iOS, intentar primero abrir Google Maps app, si no está instalada, usar browser
+      const googleMapsUrl = `comgooglemaps://?daddr=${place.latitude},${place.longitude}&directionsmode=driving`
+      const googleMapsWebUrl = `https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}&travelmode=driving`
+      
+      try {
+        const canOpen = await Linking.canOpenURL(googleMapsUrl)
+        if (canOpen) {
+          console.log('✅ Abriendo Google Maps app en iOS')
+          await Linking.openURL(googleMapsUrl)
         } else {
-          console.log('⚠️ URL no soportada, usando fallback')
-          // Fallback: usar las coordenadas si el query no funciona
-          const fallbackUrl = `https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}`
-          return Linking.openURL(fallbackUrl)
+          console.log('⚠️ Google Maps app no instalada, abriendo en navegador')
+          await Linking.openURL(googleMapsWebUrl)
         }
-      })
-      .then(() => {
-        console.log('✅ URL abierta exitosamente')
-      })
-      .catch((error) => {
-        console.error('❌ Error al abrir URL:', error)
-        // Último intento con coordenadas simples
-        const emergencyUrl = `https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}`
-        console.log('🆘 Intentando con URL de emergencia:', emergencyUrl)
-        Linking.openURL(emergencyUrl).catch((e) => console.error('❌ Error final:', e))
-      })
+      } catch (error) {
+        console.error('❌ Error abriendo Google Maps en iOS:', error)
+        // Fallback final: Apple Maps
+        const appleMapsUrl = `http://maps.apple.com/?daddr=${place.latitude},${place.longitude}&dirflg=d`
+        await Linking.openURL(appleMapsUrl)
+      }
+    } else {
+      // En Android, Google Maps debería estar instalado por defecto
+      const googleMapsUrl = `google.navigation:q=${place.latitude},${place.longitude}&mode=d`
+      const googleMapsWebUrl = `https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}&travelmode=driving`
+      
+      try {
+        const canOpen = await Linking.canOpenURL(googleMapsUrl)
+        if (canOpen) {
+          console.log('✅ Abriendo Google Maps app en Android')
+          await Linking.openURL(googleMapsUrl)
+        } else {
+          console.log('⚠️ Usando URL web de Google Maps')
+          await Linking.openURL(googleMapsWebUrl)
+        }
+      } catch (error) {
+        console.error('❌ Error abriendo Google Maps en Android:', error)
+        // Fallback: URL web
+        await Linking.openURL(googleMapsWebUrl)
+      }
+    }
   }
 
   const filteredPlaces = showOnlyOpen ? places.filter((p) => p.isOpen) : places

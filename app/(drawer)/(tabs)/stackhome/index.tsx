@@ -30,7 +30,8 @@ export default function HomeScreen() {
             <Text style={styles.cardFooterText}>
               Presiona para guiarte{"\n"}en el proceso de formalizar
             </Text>
-            <TouchableOpacity style={styles.cardButton}>
+            <TouchableOpacity style={styles.cardButton} onPress={() => router.push('/(drawer)/(tabs)/stackhome/informal')}>
+              
               <Feather name="external-link" size={20} color="#FF0000" />
             </TouchableOpacity>
           </View>

@@ -43,7 +43,7 @@ export default function stackmap() {
                   ),
               }}
             />
-       <Stack.Screen name="doctor" options={{ headerTitle: "Detalle" }} />
+       <Stack.Screen name="informal" options={{ headerShown: false }} />
     </Stack>
   );
 }
