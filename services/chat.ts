@@ -1,4 +1,4 @@
-import { supabase } from "@/config/supabase";
+import { supabase } from "@/supabase";
 
 export type Role = "user" | "assistant" | "system" | "tool";
 
