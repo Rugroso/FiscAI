@@ -95,7 +95,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Función genérica de registro
   const register = async (
     email: string,
     password: string,
