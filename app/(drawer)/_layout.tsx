@@ -85,8 +85,13 @@ function CustomDrawerContent() {
     setIsDarkMode(previousState => !previousState);
   };
 
-  const menuItems: { title: string; icon: keyof typeof MaterialCommunityIcons.glyphMap, path: string }[] = [
-    { title: "Inicio", icon: "home", path: '/(tabs)/stackhome' },
+  const menuItems: { title: string; path: string }[] = [
+    { title: "Inicio", path: '/(tabs)/stackhome' },
+    { title: "Recomendaciones", path: '/(tabs)/stackhome' },
+    { title: "Recursos Disponbiles", path: '/(tabs)/stackhome' },
+    { title: "Agenda", path: '/(tabs)/stackhome' },
+    { title: "Actualización Datos", path: '/(tabs)/stackhome' },
+    { title: "Light Mode", path: '/(tabs)/stackhome' },
   ];
 
   return (
@@ -107,12 +112,13 @@ function CustomDrawerContent() {
                   router.navigate(item.path as any);
                 }}
               >
-                <MaterialCommunityIcons name={item.icon} size={24} color="#000000" />
                 <Text style={styles.drawerItem}>{item.title}</Text>
               </TouchableOpacity>
               <View style={styles.dividerItems} />
             </View>
           ))}
+
+
         </View>
       </View>
       
