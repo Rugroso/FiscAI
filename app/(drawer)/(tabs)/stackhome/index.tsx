@@ -1,4 +1,6 @@
 import { RiskMeter } from "@/components/riskmeter";
+import GoogleCalendar from "@/components/ui/calendar";
+
 import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -63,38 +65,8 @@ export default function HomeScreen() {
         {/* Tarjeta de Próximos Eventos */}
         <View style={styles.card}>
           <View style={styles.eventsContainer}>
-            <View style={styles.calendarPreview}>
-              <View style={styles.calendarHeader}>
-                <Text style={styles.calendarMonth}>JANUARY 2025</Text>
-              </View>
-              <View style={styles.calendarGrid}>
-                {/* Mini calendario simplificado */}
-                <View style={styles.calendarWeek}>
-                  <Text style={styles.calendarDay}>20</Text>
-                  <Text style={styles.calendarDay}>21</Text>
-                  <Text style={styles.calendarDay}>22</Text>
-                  <Text style={styles.calendarDay}>23</Text>
-                  <Text style={styles.calendarDay}>24</Text>
-                  <Text style={[styles.calendarDay, styles.calendarDayHighlight]}>25</Text>
-                  <Text style={styles.calendarDay}>26</Text>
-                </View>
-              </View>
-            </View>
-            <View style={styles.eventsInfo}>
-              <Text style={styles.eventsTitle}>Próximos Eventos</Text>
-              <Text style={styles.eventItem}>
-                <Text style={styles.eventDay}>Lunes 20:</Text> Lorem ipsum
-              </Text>
-              <Text style={styles.eventItem}>
-                <Text style={styles.eventDay}>Martes 22:</Text> Lorem ipsum
-              </Text>
-              <Text style={styles.eventItem}>
-                <Text style={styles.eventDay}>Viernes 25:</Text> Lorem ipsum
-              </Text>
-              <Text style={styles.eventItem}>
-                <Text style={styles.eventDay}>Sábado 26:</Text> Lorem ipsum
-              </Text>
-            </View>
+            
+              <GoogleCalendar/>
           </View>
           <TouchableOpacity style={styles.cardButtonBottom}>
             <Feather name="external-link" size={20} color="#FF0000" />
