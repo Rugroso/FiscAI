@@ -58,10 +58,6 @@ export default function Layout() {
               <CustomDrawerButton />
             </View>
           ),
-          headerRight: () => (
-            <View style={{ flexDirection: "row", alignItems: "center", marginRight: 10 }}>
-            </View>
-          ),
         })}
         drawerContent={() => <CustomDrawerContent />}
       />

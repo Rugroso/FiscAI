@@ -3,7 +3,7 @@ import { DrawerActions, useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { Stack } from "expo-router";
 import React from "react";
-import { Platform, TouchableOpacity, View } from "react-native";
+import { Platform, TouchableOpacity } from "react-native";
 export default function stackmap() {
     const navigation = useNavigation();
 
@@ -35,10 +35,6 @@ export default function stackmap() {
                       </TouchableOpacity>
                     )
                   ),
-                headerRight: () => (
-                  <View>
-                  </View>
-                ),
               }}
             />
        <Stack.Screen name="doctor" options={{ headerTitle: "Detalle" }} />
