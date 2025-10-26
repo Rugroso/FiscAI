@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from "@/supabase";
-import { url, ENDPOINTS } from "@/config/api";
+import { url, ENDPOINTS } from "@/api";
 
 interface BusinessData {
   id: string;
