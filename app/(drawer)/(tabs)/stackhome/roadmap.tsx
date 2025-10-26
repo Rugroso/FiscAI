@@ -14,6 +14,7 @@ import {
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from "@/supabase";
+import { useReload } from "./_layout";
 
 // Interfaces para el roadmap fiscal
 interface RoadmapStep {
@@ -63,6 +64,7 @@ interface BusinessData {
 export default function FullRoadmapScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  const { registerReloadHandler, unregisterReloadHandler } = useReload();
   
   const [loading, setLoading] = useState(true);
   const [roadmapData, setRoadmapData] = useState<RoadmapData | null>(null);
@@ -72,6 +74,13 @@ export default function FullRoadmapScreen() {
 
   useEffect(() => {
     loadRoadmap();
+    
+    // Registrar handler de recarga
+    registerReloadHandler(handleRefresh);
+    
+    return () => {
+      unregisterReloadHandler();
+    };
   }, [user?.id]);
 
   // Generar hash de los datos del negocio para detectar cambios
@@ -263,7 +272,7 @@ export default function FullRoadmapScreen() {
       case 'completed':
         return '#10B981';
       case 'active':
-        return '#4A90E2';
+        return '#E80000';
       case 'locked':
         return '#E5E7EB';
       default:
@@ -296,20 +305,6 @@ export default function FullRoadmapScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{roadmapData.title || 'Roadmap Fiscal'}</Text>
-        <TouchableOpacity onPress={handleRefresh} disabled={isRefreshing}>
-          <MaterialCommunityIcons 
-            name="refresh" 
-            size={24} 
-            color={isRefreshing ? "#CCCCCC" : "#000000"} 
-          />
-        </TouchableOpacity>
-      </View>
-
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -317,7 +312,7 @@ export default function FullRoadmapScreen() {
         {/* Cache indicator */}
         {isFromCache && (
           <View style={styles.cacheIndicator}>
-            <MaterialCommunityIcons name="database-clock" size={16} color="#2196F3" />
+            <MaterialCommunityIcons name="database-clock" size={16} color="#E80000" />
             <Text style={styles.cacheText}>Datos en cache - Presiona refrescar para actualizar</Text>
           </View>
         )}
@@ -343,7 +338,7 @@ export default function FullRoadmapScreen() {
                 styles.progressBar, 
                 { 
                   width: `${roadmapData.progressPercent}%`,
-                  backgroundColor: roadmapData.progressPercent === 100 ? '#10B981' : '#4A90E2'
+                  backgroundColor: roadmapData.progressPercent === 100 ? '#10B981' : '#E80000'
                 }
               ]} 
             />
@@ -364,7 +359,7 @@ export default function FullRoadmapScreen() {
 
         {/* Timeline de Pasos */}
         <View style={styles.sectionHeader}>
-          <MaterialCommunityIcons name="timeline-text" size={24} color="#4A90E2" />
+          <MaterialCommunityIcons name="timeline-text" size={24} color="#E80000" />
           <Text style={styles.sectionTitle}>Pasos de Formalización</Text>
         </View>
         
@@ -510,21 +505,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F5F5',
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#000000",
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -566,18 +546,18 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   cacheIndicator: {
-    backgroundColor: "#E3F2FD",
+    backgroundColor: "#fddadae2",
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
     flexDirection: "row",
     alignItems: "center",
     borderLeftWidth: 3,
-    borderLeftColor: "#2196F3",
+    borderLeftColor: "#bf2c2cff",
   },
   cacheText: {
     fontSize: 13,
-    color: "#1976D2",
+    color: "#3d0101ff",
     marginLeft: 8,
     flex: 1,
   },
@@ -616,7 +596,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
-    borderColor: "#4A90E2",
+    borderColor: "#E80000",
   },
   progressPercentage: {
     fontSize: 18,
@@ -727,7 +707,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   activeBadge: {
-    backgroundColor: "#4A90E2",
+    backgroundColor: "#E80000",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -738,7 +718,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   actionButton: {
-    backgroundColor: "#4A90E2",
+    backgroundColor: "#E80000",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

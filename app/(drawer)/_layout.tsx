@@ -47,17 +47,31 @@ const customTitles: Record<string, string> = {
 };
 
 export default function Layout() {
+  const router = useRouter();
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Drawer
         screenOptions={({ route }: { route: { name: string } }) => ({
-          headerShown: Object.keys(customTitles).includes(route.name),
-          title: customTitles[route.name] || route.name,
-          headerLeft: () => (
-            <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 10 }}>
-              <CustomDrawerButton />
-            </View>
-          ),
+          headerShown: Object.keys(customTitles).includes(route.name) || route.name === "actualizarDatos",
+          title: customTitles[route.name] || (route.name === "actualizarDatos" ? "Actualizar Datos" : route.name),
+          headerLeft: () => {
+            if (route.name === "actualizarDatos") {
+              return (
+                <TouchableOpacity 
+                  style={{ marginLeft: 10 }}
+                  onPress={() => router.back()}
+                >
+                  <MaterialCommunityIcons name="arrow-left" size={24} color="#000000" />
+                </TouchableOpacity>
+              );
+            }
+            return (
+              <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 10 }}>
+                <CustomDrawerButton />
+              </View>
+            );
+          },
         })}
         drawerContent={() => <CustomDrawerContent />}
       />
@@ -87,9 +101,7 @@ function CustomDrawerContent() {
 
   const menuItems: { title: string; path: string }[] = [
     { title: "Inicio", path: '/(tabs)/stackhome' },
-    { title: "Recomendaciones", path: '/(tabs)/stackhome' },
-    { title: "Recursos Disponbiles", path: '/(tabs)/astackhome' },
-    { title: "Agenda", path: '/(tabs)/stackhome' },
+    { title: "Recomendación Fiscal", path: '/(tabs)/stackhome/recomendacion' },
     { title: "Actualización Datos", path: '/(drawer)/actualizarDatos' },
   ];
 
@@ -198,11 +210,11 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 12,
     borderRadius: 8,
-    backgroundColor: "#000000",
+    backgroundColor: "#E80000",
     justifyContent: "center",
   },
   logoutButtonPressed: {
-    backgroundColor: "#E80000",
+    backgroundColor: "#8d0000ff",
   },
   logoutText: {
     color: "white",

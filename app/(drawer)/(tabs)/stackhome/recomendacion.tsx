@@ -497,83 +497,152 @@ export default function InformalScreen() {
     const parts: React.ReactNode[] = [];
     let key = 0;
 
+    // Regex para detectar encabezados tipo markdown
+    const headerRegex = /^(#{1,6})\s+(.*)$/;
+    // Regex para listas numeradas
+    const numberedRegex = /^\s*\d+\.[ \t]+/;
+
     // Dividir el texto por líneas
     const lines = text.split('\n');
-    
+
     lines.forEach((line, lineIndex) => {
       if (line.trim() === '') {
         parts.push(<View key={`space-${key++}`} style={{ height: 8 }} />);
         return;
       }
 
-      // Detectar si es un bullet point (*)
-      const isBullet = line.trim().startsWith('*');
-      const cleanLine = isBullet ? line.trim().substring(1).trim() : line;
+      // Encabezados tipo markdown
+      const headerMatch = line.match(headerRegex);
+      if (headerMatch) {
+        const level = headerMatch[1].length;
+        const headerStyle = [
+          styles.recommendationText,
+          { fontWeight: "bold" as const, fontSize: 22 - (level * 2), marginBottom: 6 }
+        ];
+        parts.push(
+          <Text key={`header-${key++}`} style={headerStyle}>{headerMatch[2]}</Text>
+        );
+        return;
+      }
 
-      // Procesar cada línea para encontrar texto en negrita y cursiva
+      // Detectar bullets y listas numeradas
+      const isBullet = line.trim().startsWith('*') || line.trim().startsWith('-');
+      const isNumbered = numberedRegex.test(line);
+      let cleanLine = line;
+      if (isBullet) cleanLine = line.trim().substring(1).trim();
+      if (isNumbered) cleanLine = line.replace(numberedRegex, '').trim();
+
+      // Procesar cada línea para encontrar texto con formato
       const segments: React.ReactNode[] = [];
       let currentText = cleanLine;
       let segmentKey = 0;
 
-      // Agregar bullet si es necesario
+      // Agregar bullet o número si es necesario
       if (isBullet) {
         segments.push(
           <Text key={`bullet-${segmentKey++}`} style={styles.recommendationText}>
             • {' '}
           </Text>
         );
+      } else if (isNumbered) {
+        // Extraer el número
+        const numMatch = line.match(/^(\s*)(\d+)\./);
+        const num = numMatch ? numMatch[2] : '';
+        segments.push(
+          <Text key={`num-${segmentKey++}`} style={styles.recommendationText}>
+            {num + '. '}
+          </Text>
+        );
       }
 
+      // Regex para links: [texto](url)
+      // Regex para bold: **texto** o __texto__
+      // Regex para italic: *texto* o _texto_
+      // Regex para strikethrough: ~~texto~~
+      // Regex para underline: <u>texto</u>
+      // Procesar todos los formatos en orden de prioridad
       while (currentText.length > 0) {
-        // Buscar texto en negrita (**texto**)
-        const boldMatch = currentText.match(/^(.*?)\*\*([^*]+)\*\*/);
-        if (boldMatch) {
-          if (boldMatch[1]) {
+        // Links
+        const linkMatch = currentText.match(/^(.*?)\[([^\]]+)\]\(([^)]+)\)/);
+        if (linkMatch) {
+          if (linkMatch[1]) {
             segments.push(
-              <Text key={`seg-${segmentKey++}`} style={styles.recommendationText}>
-                {boldMatch[1]}
-              </Text>
+              <Text key={`seg-${segmentKey++}`} style={styles.recommendationText}>{linkMatch[1]}</Text>
             );
           }
           segments.push(
-            <Text key={`seg-${segmentKey++}`} style={[styles.recommendationText, styles.boldText]}>
-              {boldMatch[2]}
+            <Text key={`seg-${segmentKey++}`} style={[styles.recommendationText, { color: '#1976D2', textDecorationLine: 'underline' }]} onPress={() => openUrl(linkMatch[3])}>
+              {linkMatch[2]}
             </Text>
+          );
+          currentText = currentText.substring(linkMatch[0].length);
+          continue;
+        }
+        // Bold (**) o (__)
+        const boldMatch = currentText.match(/^(.*?)((\*\*|__)([^*^_]+)(\*\*|__))/);
+        if (boldMatch) {
+          if (boldMatch[1]) {
+            segments.push(
+              <Text key={`seg-${segmentKey++}`} style={styles.recommendationText}>{boldMatch[1]}</Text>
+            );
+          }
+          segments.push(
+            <Text key={`seg-${segmentKey++}`} style={[styles.recommendationText, styles.boldText]}>{boldMatch[4]}</Text>
           );
           currentText = currentText.substring(boldMatch[0].length);
           continue;
         }
-
-        // Buscar texto en cursiva (*texto*)
-        const italicMatch = currentText.match(/^(.*?)\*([^*]+)\*/);
+        // Italic (*) o (_)
+        const italicMatch = currentText.match(/^(.*?)((\*|_)([^*_]+)(\*|_))/);
         if (italicMatch) {
           if (italicMatch[1]) {
             segments.push(
-              <Text key={`seg-${segmentKey++}`} style={styles.recommendationText}>
-                {italicMatch[1]}
-              </Text>
+              <Text key={`seg-${segmentKey++}`} style={styles.recommendationText}>{italicMatch[1]}</Text>
             );
           }
           segments.push(
-            <Text key={`seg-${segmentKey++}`} style={[styles.recommendationText, styles.italicText]}>
-              {italicMatch[2]}
-            </Text>
+            <Text key={`seg-${segmentKey++}`} style={[styles.recommendationText, styles.italicText]}>{italicMatch[4]}</Text>
           );
           currentText = currentText.substring(italicMatch[0].length);
           continue;
         }
-
+        // Strikethrough: ~~texto~~
+        const strikeMatch = currentText.match(/^(.*?)~~([^~]+)~~/);
+        if (strikeMatch) {
+          if (strikeMatch[1]) {
+            segments.push(
+              <Text key={`seg-${segmentKey++}`} style={styles.recommendationText}>{strikeMatch[1]}</Text>
+            );
+          }
+          segments.push(
+            <Text key={`seg-${segmentKey++}`} style={[styles.recommendationText, { textDecorationLine: 'line-through', color: '#888' }]}>{strikeMatch[2]}</Text>
+          );
+          currentText = currentText.substring(strikeMatch[0].length);
+          continue;
+        }
+        // Underline: <u>texto</u>
+        const underlineMatch = currentText.match(/^(.*?)<u>([^<]+)<\/u>/);
+        if (underlineMatch) {
+          if (underlineMatch[1]) {
+            segments.push(
+              <Text key={`seg-${segmentKey++}`} style={styles.recommendationText}>{underlineMatch[1]}</Text>
+            );
+          }
+          segments.push(
+            <Text key={`seg-${segmentKey++}`} style={[styles.recommendationText, { textDecorationLine: 'underline' }]}>{underlineMatch[2]}</Text>
+          );
+          currentText = currentText.substring(underlineMatch[0].length);
+          continue;
+        }
         // Si no hay más formato, agregar el resto del texto
         segments.push(
-          <Text key={`seg-${segmentKey++}`} style={styles.recommendationText}>
-            {currentText}
-          </Text>
+          <Text key={`seg-${segmentKey++}`} style={styles.recommendationText}>{currentText}</Text>
         );
         break;
       }
 
       parts.push(
-        <View key={`line-${key++}`} style={isBullet ? styles.bulletLine : { marginBottom: 4 }}>
+        <View key={`line-${key++}`} style={isBullet || isNumbered ? styles.bulletLine : { marginBottom: 4 }}>
           <Text>{segments}</Text>
         </View>
       );
@@ -594,6 +663,13 @@ export default function InformalScreen() {
   if (error || !data) {
     return (
       <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <MaterialIcons name="arrow-back" size={24} color="#000000" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Recomendación Fiscal</Text>
+          <View style={{ width: 24 }} />
+        </View>
         <View style={styles.errorContainer}>
           <MaterialCommunityIcons name="alert-circle" size={60} color="#FF0000" />
           <Text style={styles.errorText}>{error || "Error al cargar datos"}</Text>
@@ -607,6 +683,21 @@ export default function InformalScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <MaterialIcons name="arrow-back" size={24} color="#000000" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Recomendación Fiscal</Text>
+        <TouchableOpacity onPress={handleRefresh} disabled={isRefreshing}>
+          <MaterialCommunityIcons 
+            name="refresh" 
+            size={24} 
+            color={isRefreshing ? "#CCCCCC" : "#000000"} 
+          />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView 
         style={styles.scrollView} 
         showsVerticalScrollIndicator={false}
@@ -801,6 +892,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F5F5F5",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#000000",
   },
   loadingContainer: {
     flex: 1,

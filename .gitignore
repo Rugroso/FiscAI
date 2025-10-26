@@ -46,3 +46,4 @@ app-example
 /config
 # .env
 /.env
+app/(drawer)/(tabs)/stackhome/recomendacion.tsx

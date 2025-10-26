@@ -1,43 +1,127 @@
-# Welcome to your Expo app 👋
+<div align="center">
+  <img src="./assets/images/icon.png" alt="FiscAI Logo" width="120" />
+  <h1>FiscAI</h1>
+  <p>Asistente fiscal inteligente para pequeños negocios y emprendedores</p>
+</div>
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+---
 
-## Get started
+## Descripción
 
-1. Install dependencies
+FiscAI es una aplicación móvil multiplataforma desarrollada con Expo y React Native, diseñada para ayudar a pequeños negocios y emprendedores a gestionar su situación fiscal, obtener recomendaciones personalizadas, visualizar su progreso y acceder a herramientas inteligentes como chat asistido, roadmap fiscal, análisis financiero y más.
 
+## Tabla de Contenidos
+
+- [Instalación](#instalación)
+- [Uso](#uso)
+- [Estructura del Proyecto](#estructura-del-proyecto)
+- [Tecnologías Utilizadas](#tecnologías-utilizadas)
+- [Funcionalidades Principales](#funcionalidades-principales)
+- [Base de Datos y Supabase](#base-de-datos-y-supabase)
+- [Créditos](#créditos)
+
+---
+
+## Instalación
+
+1. Clona el repositorio y entra al directorio:
+   ```bash
+   git clone https://github.com/Rugroso/FiscAI.git
+   cd FiscAI
+   ```
+2. Instala las dependencias:
    ```bash
    npm install
    ```
-
-2. Start the app
-
+3. Configura las variables de entorno en un archivo `.env`:
+   ```env
+   EXPO_PUBLIC_SUPABASE_URL=TU_URL_SUPABASE
+   EXPO_PUBLIC_SUPABASE_KEY=TU_KEY_SUPABASE
+   EXPO_PUBLIC_API_BASE_URL=TU_API_URL
+   EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=TU_API_KEY
+   ```
+4. Inicia la app:
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+## Uso
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Puedes abrir la app en un emulador Android/iOS, dispositivo físico con Expo Go, o en la web. Sigue las instrucciones que aparecen en la terminal tras ejecutar el comando de inicio.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Estructura del Proyecto
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+FiscAI/
+├── app/                # Pantallas y rutas principales (file-based routing)
+│   ├── _layout.tsx     # Layout global, providers de contexto
+│   ├── login.tsx       # Pantalla de inicio de sesión
+│   ├── register.tsx    # Registro de usuario
+│   ├── cuestionario.tsx# Cuestionario inicial de negocio
+│   ├── (drawer)/       # Navegación principal tipo Drawer
+│   │   └── (tabs)/     # Navegación por pestañas (Home, Chat, Mapa, etc.)
+│   │       ├── stackhome/   # Home, Roadmap, Beneficios, Recomendaciones
+│   │       ├── stackchat/   # Chatbot fiscal
+│   │       └── stackmap/    # Mapa de bancos y SAT
+├── components/         # Componentes reutilizables (UI, gráficos, etc.)
+├── context/            # Contextos globales (Auth, Progreso)
+├── services/           # Lógica de negocio (ej. chat, API)
+├── constants/          # Temas y constantes globales
+├── config/             # Configuración de API y Supabase
+├── assets/             # Imágenes y recursos estáticos
+├── scripts/            # Scripts utilitarios
+├── package.json        # Dependencias y scripts de npm
+├── app.json            # Configuración de Expo
+└── README.md           # Este archivo
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Desglose de Carpetas y Archivos Clave
 
-## Learn more
+- **app/**: Contiene todas las pantallas y rutas. Usa Expo Router para navegación basada en archivos.
+- **components/**: Elementos visuales reutilizables (ej. `growthpotential.tsx`, `roadmap.tsx`, `ui/`).
+- **context/**: Proveedores de contexto global para autenticación y progreso del usuario.
+- **services/**: Lógica de negocio, como el servicio de chat conectado a Supabase.
+- **supabase/**: Migraciones SQL para la base de datos (conversaciones, negocios, etc.).
+- **config/**: Configuración centralizada de APIs y claves.
+- **constants/**: Temas de color y constantes globales.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Tecnologías Utilizadas
+
+- **React Native** (Expo)
+- **TypeScript**
+- **Expo Router**
+- **Supabase** (autenticación, base de datos, realtime)
+- **React Navigation**
+- **AsyncStorage**
+- **Google Maps API**
+- **Expo Modules**: Haptics, Image Picker, Location, etc.
+
+## Funcionalidades Principales
+
+- **Autenticación de usuarios** (registro, login, persistencia de sesión)
+- **Cuestionario inicial** para personalizar la experiencia según el negocio
+- **Roadmap fiscal**: guía paso a paso para cumplir obligaciones fiscales
+- **Chatbot fiscal**: asistente inteligente conectado a Supabase
+- **Análisis de potencial de crecimiento** y recomendaciones financieras
+- **Mapa interactivo** de bancos y oficinas SAT cercanas
+- **Gestión de progreso** y desbloqueo de etapas
+- **Beneficios y recursos** para el usuario
+
+## Base de Datos y Supabase
+
+El backend utiliza Supabase para autenticación y almacenamiento de datos. Las migraciones SQL se encuentran en `supabase/migrations/` e incluyen:
+
+- `001_chat_schema.sql`: Tablas para conversaciones y mensajes del chat
+- `002_businesses_schema.sql`: Información de negocios, métricas y formalidad
+
+## Créditos
+
+Desarrollado por [Rugroso](https://github.com/Rugroso) y colaboradores.
+
+---
+<div align="center">
+  <sub>© 2025 FiscAI. Todos los derechos reservados.</sub>
+</div>
 
 - [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
 - [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.

@@ -243,6 +243,42 @@ const cardData = [
           </View>
         </View>
 
+        {/* Tarjeta de Recomendaciones Financieras Banorte */}
+        <View style={styles.card}>
+          <Pressable
+            onPress={() => router.push("/(drawer)/(tabs)/stackhome/financialRecommendations" as any)}
+          >
+            <View style={styles.banorteContainer}>
+              <View style={styles.banorteIconContainer}>
+                <Feather name="trending-up" size={32} color="#FF0000" />
+              </View>
+              <View style={styles.banorteInfoCard}>
+                <Text style={styles.banorteTitleCard}>Recomendaciones Financieras</Text>
+                <Text style={styles.banorteSubtitleCard}>Descubre productos de Banorte para tu negocio</Text>
+                <View style={styles.banorteTags}>
+                  <View style={styles.banorteTag}>
+                    <Text style={styles.banorteTagText}>Créditos</Text>
+                  </View>
+                  <View style={styles.banorteTag}>
+                    <Text style={styles.banorteTagText}>Cuentas</Text>
+                  </View>
+                  <View style={styles.banorteTag}>
+                    <Text style={styles.banorteTagText}>Seguros</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+            <View style={styles.cardFooter}>
+              <Text style={styles.cardFooterText}>
+                Productos financieros{"\n"}personalizados para ti
+              </Text>
+              <View style={styles.cardButton}>
+                <Feather name="arrow-right-circle" size={24} color="#000000ff" />
+              </View>
+            </View>
+          </Pressable>
+        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -617,5 +653,49 @@ const styles = StyleSheet.create({
     color: "#666666",
     textAlign: "center",
     padding: 20,
+  },
+  banorteContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 16,
+  },
+  banorteIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#FFE5E5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  banorteInfoCard: {
+    flex: 1,
+  },
+  banorteTitleCard: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#000000",
+    marginBottom: 4,
+  },
+  banorteSubtitleCard: {
+    fontSize: 13,
+    color: "#666666",
+    marginBottom: 8,
+  },
+  banorteTags: {
+    flexDirection: "row",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  banorteTag: {
+    backgroundColor: "#FF0000",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  banorteTagText: {
+    fontSize: 11,
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
 });
