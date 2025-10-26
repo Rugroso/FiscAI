@@ -32,7 +32,7 @@ export const ENDPOINTS = {
 export function url(path: string) {
   if (!API_BASE_URL) {
     throw new Error(
-      "API base URL is not configured. Please set EXPO_PUBLIC_SUPABASE_URL in your .env"
+      "API base URL is not configured. Please set EXPO_PUBLIC_API_BASE_URL in your .env"
     );
   }
   return `${API_BASE_URL}${path}`;
