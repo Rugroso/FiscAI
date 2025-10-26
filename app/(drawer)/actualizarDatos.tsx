@@ -1,7 +1,60 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, StyleSheet } from "react-native";
-import { supabase } from "@/supabase"; 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+} from "react-native";
+import { supabase } from "@/supabase";
 import { useRouter } from "expo-router";
+
+const optionQuestions: Record<
+  string,
+  { label: string; options: { label: string; value: number }[] }
+> = {
+  profit_margin: {
+    label: "¿Qué tanto ganas en comparación a lo que vendes?",
+    options: [
+      { label: "Gano muy poco", value: 0.1 },
+      { label: "Gano un margen razonable", value: 0.3 },
+      { label: "Tengo buenas ganancias", value: 0.5 },
+      { label: "Mis ganancias son muy altas", value: 0.75 },
+    ],
+  },
+  cash_flow: {
+    label: "¿Cómo describirías el flujo de dinero en tu negocio mes a mes?",
+    options: [
+      { label: "Casi no tengo dinero disponible", value: 0.1 },
+      { label: "A veces me alcanza, a veces no", value: 0.5 },
+      { label: "Casi siempre tengo dinero disponible", value: 0.75 },
+      { label: "Siempre tengo dinero disponible", value: 1 },
+    ],
+  },
+  debt_ratio: {
+    label: "¿Qué tanto debe tu negocio actualmente?",
+    options: [
+      { label: "Nada", value: 0 },
+      { label: "Poca deuda", value: 0.25 },
+      { label: "Deuda moderada", value: 0.5 },
+      { label: "Deuda alta", value: 0.75 },
+      { label: "Deuda muy alta", value: 1 },
+    ],
+  },
+  digitalization_score: {
+    label: "¿Qué tan activo es tu negocio en redes sociales o internet?",
+    options: [
+      { label: "Nada (no tengo redes ni página)", value: 0 },
+      { label: "Poco (tengo redes pero no las uso mucho)", value: 0.25 },
+      { label: "Algo (a veces publico o vendo en línea)", value: 0.5 },
+      { label: "Casi siempre (uso redes o apps frecuentemente)", value: 0.75 },
+      { label: "Siempre (mi negocio depende mucho de internet)", value: 1 },
+    ],
+  },
+};
 
 export default function EditBusinessPage() {
   const [loading, setLoading] = useState(true);
@@ -16,11 +69,11 @@ export default function EditBusinessPage() {
   const fetchBusiness = async () => {
     try {
       setLoading(true);
-const { data, error } = await supabase
-  .from("businesses")
-  .select("*")
-  .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
-  .single();
+      const { data, error } = await supabase
+        .from("businesses")
+        .select("*")
+        .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
+        .single();
       if (error) throw error;
       setBusiness(data);
     } catch (error) {
@@ -38,7 +91,10 @@ const { data, error } = await supabase
   const handleSave = async () => {
     try {
       setSaving(true);
-      const { error } = await supabase.from("businesses").update(business).eq("id", business.id);
+      const { error } = await supabase
+        .from("businesses")
+        .update(business)
+        .eq("id", business.id);
       if (error) throw error;
       Alert.alert("Éxito", "Los datos se actualizaron correctamente.");
       router.back();
@@ -76,12 +132,12 @@ const { data, error } = await supabase
         monthly_income: "Ingresos mensuales",
         monthly_expenses: "Gastos mensuales",
         net_profit: "Utilidad neta mensual",
-        profit_margin: "Margen de ganancia (0 a 1)",
+        profit_margin: "Margen de ganancia",
         cash_flow: "Flujo de efectivo mensual",
-        debt_ratio: "Nivel de deuda (0 a 1)",
+        debt_ratio: "Nivel de deuda",
         business_age_years: "Años de antigüedad del negocio",
         employees: "Cantidad de empleados",
-        digitalization_score: "Nivel de digitalización (0 a 1)",
+        digitalization_score: "Nivel de digitalización",
         metodos_pago: "Métodos de pago",
         has_rfc: "¿Tienes RFC?",
         has_efirma: "¿Tienes e.firma?",
@@ -91,8 +147,11 @@ const { data, error } = await supabase
         formal: "¿Tu negocio es formal?",
       }).map(([key, label]) => (
         <View key={key} style={styles.field}>
-          <Text style={styles.label}>{label}</Text>
+          <Text style={styles.label}>
+            {optionQuestions[key]?.label || label}
+          </Text>
 
+          {/* Boolean fields */}
           {typeof business[key] === "boolean" ? (
             <View style={styles.booleanRow}>
               <TouchableOpacity
@@ -102,7 +161,14 @@ const { data, error } = await supabase
                 ]}
                 onPress={() => handleChange(key, true)}
               >
-                <Text style={[styles.booleanText, business[key] === true && { color: "#fff" }]}>Sí</Text>
+                <Text
+                  style={[
+                    styles.booleanText,
+                    business[key] === true && { color: "#fff" },
+                  ]}
+                >
+                  Sí
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -111,10 +177,44 @@ const { data, error } = await supabase
                 ]}
                 onPress={() => handleChange(key, false)}
               >
-                <Text style={[styles.booleanText, business[key] === false && { color: "#fff" }]}>No</Text>
+                <Text
+                  style={[
+                    styles.booleanText,
+                    business[key] === false && { color: "#fff" },
+                  ]}
+                >
+                  No
+                </Text>
               </TouchableOpacity>
             </View>
+          ) : optionQuestions[key] ? (
+            // Option fields
+            <View style={{ marginTop: 5 }}>
+              {optionQuestions[key].options.map((opt, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.optionButton,
+                    business[key] === opt.value && {
+                      backgroundColor: "#C8102E",
+                      borderColor: "#C8102E",
+                    },
+                  ]}
+                  onPress={() => handleChange(key, opt.value)}
+                >
+                  <Text
+                    style={[
+                      styles.optionText,
+                      business[key] === opt.value && { color: "#fff" },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           ) : (
+            // Text or numeric input
             <TextInput
               style={styles.input}
               value={String(business[key] ?? "")}
@@ -128,7 +228,11 @@ const { data, error } = await supabase
         </View>
       ))}
 
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
+      <TouchableOpacity
+        style={styles.saveButton}
+        onPress={handleSave}
+        disabled={saving}
+      >
         {saving ? (
           <ActivityIndicator color="#fff" />
         ) : (
@@ -184,6 +288,18 @@ const styles = StyleSheet.create({
   booleanText: {
     color: "#C8102E",
     fontWeight: "600",
+  },
+  optionButton: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    marginVertical: 4,
+  },
+  optionText: {
+    color: "#333",
+    fontSize: 15,
   },
   saveButton: {
     backgroundColor: "#C8102E",
