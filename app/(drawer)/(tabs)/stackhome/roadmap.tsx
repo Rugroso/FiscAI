@@ -272,7 +272,7 @@ export default function FullRoadmapScreen() {
       case 'completed':
         return '#10B981';
       case 'active':
-        return '#4A90E2';
+        return '#E80000';
       case 'locked':
         return '#E5E7EB';
       default:
@@ -312,7 +312,7 @@ export default function FullRoadmapScreen() {
         {/* Cache indicator */}
         {isFromCache && (
           <View style={styles.cacheIndicator}>
-            <MaterialCommunityIcons name="database-clock" size={16} color="#2196F3" />
+            <MaterialCommunityIcons name="database-clock" size={16} color="#E80000" />
             <Text style={styles.cacheText}>Datos en cache - Presiona refrescar para actualizar</Text>
           </View>
         )}
@@ -338,7 +338,7 @@ export default function FullRoadmapScreen() {
                 styles.progressBar, 
                 { 
                   width: `${roadmapData.progressPercent}%`,
-                  backgroundColor: roadmapData.progressPercent === 100 ? '#10B981' : '#4A90E2'
+                  backgroundColor: roadmapData.progressPercent === 100 ? '#10B981' : '#E80000'
                 }
               ]} 
             />
@@ -359,7 +359,7 @@ export default function FullRoadmapScreen() {
 
         {/* Timeline de Pasos */}
         <View style={styles.sectionHeader}>
-          <MaterialCommunityIcons name="timeline-text" size={24} color="#4A90E2" />
+          <MaterialCommunityIcons name="timeline-text" size={24} color="#E80000" />
           <Text style={styles.sectionTitle}>Pasos de Formalización</Text>
         </View>
         
@@ -546,18 +546,18 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   cacheIndicator: {
-    backgroundColor: "#E3F2FD",
+    backgroundColor: "#fddadae2",
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
     flexDirection: "row",
     alignItems: "center",
     borderLeftWidth: 3,
-    borderLeftColor: "#2196F3",
+    borderLeftColor: "#bf2c2cff",
   },
   cacheText: {
     fontSize: 13,
-    color: "#1976D2",
+    color: "#3d0101ff",
     marginLeft: 8,
     flex: 1,
   },
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
-    borderColor: "#4A90E2",
+    borderColor: "#E80000",
   },
   progressPercentage: {
     fontSize: 18,
@@ -707,7 +707,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   activeBadge: {
-    backgroundColor: "#4A90E2",
+    backgroundColor: "#E80000",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   actionButton: {
-    backgroundColor: "#4A90E2",
+    backgroundColor: "#E80000",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

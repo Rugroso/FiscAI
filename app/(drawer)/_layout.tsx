@@ -101,9 +101,7 @@ function CustomDrawerContent() {
 
   const menuItems: { title: string; path: string }[] = [
     { title: "Inicio", path: '/(tabs)/stackhome' },
-    { title: "Recomendaciones", path: '/(tabs)/stackhome' },
-    { title: "Recursos Disponbiles", path: '/(tabs)/astackhome' },
-    { title: "Agenda", path: '/(tabs)/stackhome' },
+    { title: "Recomendación Fiscal", path: '/(tabs)/stackhome/recomendacion' },
     { title: "Actualización Datos", path: '/(drawer)/actualizarDatos' },
   ];
 
@@ -212,11 +210,11 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 12,
     borderRadius: 8,
-    backgroundColor: "#000000",
+    backgroundColor: "#E80000",
     justifyContent: "center",
   },
   logoutButtonPressed: {
-    backgroundColor: "#E80000",
+    backgroundColor: "#8d0000ff",
   },
   logoutText: {
     color: "white",
