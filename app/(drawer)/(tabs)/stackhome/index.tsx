@@ -7,7 +7,8 @@ import CarouselCard from "@/components/ui/carouselCard";
 import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useState, useEffect } from "react";
+import {supabase} from "@/supabase";
 
 import {
   Pressable,
@@ -22,8 +23,43 @@ import {
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const [nombreNegocio, setNombreNegocio] = useState("");
+  const [loading, setLoading] = useState(true);
   const { state, setActive } = useProgress();
   const growthMultiplier = 1.4; // Multiplicador de crecimiento anual (ejemplo: x1.4 = 40% de crecimiento)
+  
+  useEffect(() => {
+    async function fetchBusinessName() {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('businesses')
+          .select('businessName')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error obteniendo nombre del negocio:', error);
+          return;
+        }
+
+        if (data?.businessName) {
+          setNombreNegocio(data.businessName);
+        }
+      } catch (err) {
+        console.error('Error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchBusinessName();
+  }, [user?.id]);
+
   const roadmapSteps: RoadmapStep[] = [
     { key: 'perfil', title: 'Perfil fiscal', subtitle: 'Cuéntanos de tu empresa', status: state.perfil },
     { key: 'regimen', title: 'Régimen óptimo', subtitle: 'Recomendación', status: state.regimen },
@@ -31,6 +67,7 @@ export default function HomeScreen() {
     { key: 'calendario', title: 'Calendario SAT', subtitle: 'Fechas clave', status: state.calendario },
     { key: 'riesgos', title: 'Riesgo fiscal', subtitle: 'Mitiga y mejora', status: state.riesgos },
   ];
+
 
   const onRoadmapPress = (key: string) => {
     setActive(key as any);
@@ -61,18 +98,31 @@ export default function HomeScreen() {
         {/* Tarjeta de Bienvenida */}
         <View style={styles.card}>
           <Text style={styles.welcomeTitle}>
-            Bienvenido <Text style={styles.businessName}>{user?.name || "Usuario"}</Text>
+            Bienvenido, <Text style={styles.userName}>{user?.name || "Usuario"}</Text>
           </Text>
-          <Text style={styles.businessStatus}>
-            Negocio <Text style={styles.informal}>Informal</Text>
-          </Text>
+          
+          {nombreNegocio ? (
+            <>
+              <Text style={styles.businessLabel}>Tu negocio:</Text>
+              <Text style={styles.businessStatus}>
+                <Text style={styles.businessNameHighlight}>{nombreNegocio}</Text>
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.noBusinessText}>
+              Completa el cuestionario para registrar tu negocio
+            </Text>
+          )}
+          
           <View style={styles.cardFooter}>
             <Text style={styles.cardFooterText}>
-              Presiona para guiarte{"\n"}en el proceso de formalizar
+              Descubre cómo formalizar{"\n"}tu negocio paso a paso
             </Text>
-            <TouchableOpacity style={styles.cardButton} onPress={() => router.push('/(drawer)/(tabs)/stackhome/recomendacion')}>
-              
-              <Feather name="external-link" size={20} color="#FF0000" />
+            <TouchableOpacity 
+              style={styles.cardButton} 
+              onPress={() => router.push(nombreNegocio ? '/(drawer)/(tabs)/stackhome/recomendacion' : '/cuestionario')}
+            >
+              <Feather name="arrow-right-circle" size={24} color="#000000ff" />
             </TouchableOpacity>
           </View>
         </View>
@@ -187,16 +237,38 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600",
     color: "#000000",
-    marginBottom: 4,
+    marginBottom: 12,
   },
-  businessName: {
+  userName: {
     fontWeight: "bold",
+    color: "#E80000",
+  },
+  businessLabel: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 4,
+    fontWeight: "500",
   },
   businessStatus: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#000000",
-    marginBottom: 12,
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 16,
+  },
+  businessNameHighlight: {
+    color: "#E80000",
+  },
+  noBusinessText: {
+    fontSize: 15,
+    color: "#F59E0B",
+    fontStyle: "italic",
+    marginBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: "#F59E0B",
   },
   informal: {
     color: "#FF0000",
