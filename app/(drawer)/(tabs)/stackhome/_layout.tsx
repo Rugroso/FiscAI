@@ -64,23 +64,36 @@ export default function StackHomeLayout() {
                     <Text style={{ fontSize: 24, fontWeight: "bold", color: "#E80000" }}>AI</Text>
                   </View>
                 ),
-                  headerLeft: () => (
-                    Platform.OS === "ios" ? (
-                      <TouchableOpacity 
-                        style={{ padding: 2, backgroundColor: "#FFFFFF", borderRadius: 50 }}
-                        onPress={openDrawer}
-                      >
-                        <MaterialCommunityIcons name="menu" size={24} color="#000000" />
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity 
-                        style={{ padding: 2, marginRight:12, backgroundColor: "#FFFFFF", borderRadius: 50 }}
-                        onPress={openDrawer}
-                      >
-                        <MaterialCommunityIcons name="menu" size={24} color="#000000" />
-                      </TouchableOpacity>
-                    )
-                  ),
+                headerLeft: () => (
+                  Platform.OS === "ios" ? (
+                    <TouchableOpacity 
+                      style={{ padding: 2, backgroundColor: "#FFFFFF", borderRadius: 50 }}
+                      onPress={openDrawer}
+                    >
+                      <MaterialCommunityIcons name="menu" size={24} color="#000000" />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity 
+                      style={{ padding: 2, marginRight:12, backgroundColor: "#FFFFFF", borderRadius: 50 }}
+                      onPress={openDrawer}
+                    >
+                      <MaterialCommunityIcons name="menu" size={24} color="#000000" />
+                    </TouchableOpacity>
+                  )
+                ),
+                headerRight: () => (
+                  <TouchableOpacity 
+                    onPress={triggerReload}
+                    disabled={isReloading}
+                    style={{ marginRight: 10 }}
+                  >
+                    <MaterialCommunityIcons 
+                      name="refresh" 
+                      size={24} 
+                      color={isReloading ? "#CCCCCC" : "#000000"} 
+                    />
+                  </TouchableOpacity>
+                ),
               }}
             />
        <Stack.Screen

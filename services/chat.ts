@@ -370,6 +370,7 @@ function extractDeepLink(resp: any): string | null {
   return null;
 }
 
+
 // Intenta extraer el texto útil de varias posibles formas de respuesta
 // También maneja respuestas estructuradas como deep links para abrir el mapa
 function extractAssistantText(resp: any): string | null {
@@ -614,9 +615,11 @@ export function subscribeToMessages(
 
 // Helper to map DB message to UI-friendly shape
 export function toUiMessage(m: MessageRow, currentUserId: string) {
+  // Elimina los dobles asteriscos ** del texto
+  const cleanText = (m.content ?? "").replace(/\*\*(.*?)\*\*/g, '$1');
   return {
     id: m.id,
-    text: m.content ?? "",
+    text: cleanText,
     isUser: m.role === "user" && m.author_id === currentUserId,
     timestamp: new Date(m.created_at),
     deepLink: m.payload?.deep_link ?? undefined, // Extraer deep link del payload

@@ -14,31 +14,55 @@ import {
     View
 } from "react-native";
 import { useReload } from "./_layout";
+import { url, ENDPOINTS } from "@/config/api";
 
-interface BanorteProduct {
-  name: string;
-  type: string;
+
+type CreditOption = {
+  title: string;
   description: string;
-  benefits: string[];
-  requirements: string[];
-  recommended_for: string;
-  interest_rate?: string;
-  credit_limit?: string;
-  url?: string;
-}
+  source: string;
+  relevance: number;
+};
 
-interface FinancialRecommendation {
-  overall_message: string;
-  products: BanorteProduct[];
-  additional_benefits: string[];
-  next_steps: string[];
-}
+type TaxDeduction = {
+  title: string;
+  description: string;
+  source: string;
+  relevance: number;
+};
 
-interface ApiResponse {
-  success: boolean;
-  recommendation: FinancialRecommendation;
-  timestamp: string;
-}
+type Recommendation = {
+  type: string;
+  priority: string;
+  title: string;
+  description: string;
+  action: string;
+};
+
+type FinancialHealth = {
+  score: number;
+  level: string;
+  monthly_profit: number;
+  profit_margin: number;
+  annual_income: number;
+};
+
+type Profile = {
+  actividad: string;
+  monthly_income: number;
+  monthly_expenses: number;
+  has_rfc: boolean;
+  regime: string;
+  employees: number;
+};
+
+type ApiResponse = {
+  financial_health: FinancialHealth;
+  credit_options: CreditOption[];
+  tax_deductions: TaxDeduction[];
+  recommendations: Recommendation[];
+  profile: Profile;
+};
 
 export default function FinancialRecommendationsScreen() {
   const router = useRouter();
@@ -48,167 +72,52 @@ export default function FinancialRecommendationsScreen() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchRecommendations();
-    
-    // Registrar handler de recarga
-    registerReloadHandler(fetchRecommendations);
-    
-    return () => {
-      unregisterReloadHandler();
-    };
-  }, []);
-
-  const fetchRecommendations = async () => {
+  async function fetchRecommendations() {
     try {
       setLoading(true);
       setError(null);
-
-      // Datos del perfil del usuario para obtener recomendaciones personalizadas
       const profileData = {
-        profile: {
-          business_type: "PYME",
-          monthly_income: 120000,
-          employees: 8,
-          industry: "Comercio retail",
-          has_bank_account: true,
-          credit_history: "bueno",
-          annual_revenue: 1440000,
-        },
+        actividad: "Restaurante",
+        monthly_income: 80000,
+        monthly_expenses: 50000,
+        has_rfc: true,
+        regime: "RESICO",
+        employees: 5,
       };
-
-      console.log('🚀 Enviando petición de recomendaciones financieras...');
-
-      // TODO: Reemplazar con el endpoint real cuando esté disponible
-      const response = await fetch(
-        "https://d8pgui6dhb.execute-api.us-east-2.amazonaws.com/financial-recommendations",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(profileData),
-        }
-      );
-
-      console.log('📡 Status:', response.status);
-
+        const response = await fetch(url(ENDPOINTS.financial), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+          body: JSON.stringify({
+            actividad: "Restaurante",
+            ingresos_mensuales: 80000,
+            gastos_mensuales: 50000,
+            tiene_rfc: true,
+            regimen_fiscal: "RESICO",
+            num_empleados: 5,
+          }),
+      });
       if (!response.ok) {
-        // Si el endpoint no está disponible, usar datos mock
-        throw new Error("Usando datos de ejemplo");
+        throw new Error("No se pudo obtener la recomendación financiera");
       }
-
       const result = await response.json();
-      console.log('📦 Respuesta:', result);
-
       setData(result);
     } catch (err) {
-      console.warn("⚠️ Usando datos de ejemplo:", err);
-      
-      // Datos de ejemplo mientras se implementa el endpoint
-      const mockData: ApiResponse = {
-        success: true,
-        recommendation: {
-          overall_message: "Basado en el perfil de tu negocio, hemos identificado productos y servicios de Banorte que pueden impulsar tu crecimiento y mejorar tu gestión financiera.",
-          products: [
-            {
-              name: "Línea de Crédito PYME",
-              type: "Crédito",
-              description: "Línea de crédito revolvente diseñada para pequeñas y medianas empresas que necesitan capital de trabajo.",
-              benefits: [
-                "Tasa preferencial para PYMES",
-                "Disposición inmediata hasta $2,000,000",
-                "Plazo hasta 36 meses",
-                "Sin comisión por apertura"
-              ],
-              requirements: [
-                "Antigüedad mínima de 2 años",
-                "Estados financieros al corriente",
-                "Buen historial crediticio"
-              ],
-              recommended_for: "Negocios con ingresos estables que necesitan liquidez para operaciones diarias",
-              interest_rate: "12.5% - 18.9% anual",
-              credit_limit: "Hasta $2,000,000 MXN",
-              url: "https://www.banorte.com/empresas/credito/linea-credito-pyme"
-            },
-            {
-              name: "Terminal Punto de Venta",
-              type: "Servicios",
-              description: "Acepta pagos con tarjetas de crédito y débito con las mejores comisiones del mercado.",
-              benefits: [
-                "Comisión desde 2.5%",
-                "Depósito en 24 horas",
-                "Sin renta mensual",
-                "Programa de puntos Banorte Rewards"
-              ],
-              requirements: [
-                "RFC activo",
-                "Cuenta de cheques Banorte",
-                "Comprobante de domicilio"
-              ],
-              recommended_for: "Comercios que quieren aumentar sus ventas aceptando tarjetas",
-              url: "https://www.banorte.com/empresas/terminales-punto-venta"
-            },
-            {
-              name: "Cuenta Empresarial Plus",
-              type: "Cuenta",
-              description: "Cuenta de cheques empresarial con múltiples beneficios para la operación diaria de tu negocio.",
-              benefits: [
-                "Sin comisión por manejo de cuenta",
-                "100 operaciones gratis al mes",
-                "Banca en línea y móvil",
-                "Chequera sin costo"
-              ],
-              requirements: [
-                "Apertura desde $5,000",
-                "Documentos legales de la empresa",
-                "Identificación del representante legal"
-              ],
-              recommended_for: "Empresas que buscan una cuenta completa para gestionar su operación",
-              url: "https://www.banorte.com/empresas/cuentas/cuenta-empresarial-plus"
-            },
-            {
-              name: "Seguro Empresarial",
-              type: "Seguro",
-              description: "Protege tu negocio contra imprevistos con coberturas amplias y personalizables.",
-              benefits: [
-                "Protección contra incendio y robo",
-                "Responsabilidad civil",
-                "Cobertura de equipo electrónico",
-                "Descuento por múltiples pólizas"
-              ],
-              requirements: [
-                "Valuación de activos",
-                "Inspección del inmueble",
-                "Historial de siniestros"
-              ],
-              recommended_for: "Negocios con activos físicos importantes que necesitan protección",
-              url: "https://www.banorte.com/seguros/empresas"
-            }
-          ],
-          additional_benefits: [
-            "Descuentos exclusivos en servicios de asesoría fiscal y contable",
-            "Acceso a talleres gratuitos de educación financiera empresarial",
-            "Programa de recompensas Banorte Rewards con puntos dobles para empresas",
-            "Ejecutivo de cuenta dedicado para atención personalizada"
-          ],
-          next_steps: [
-            "Agenda una cita con un ejecutivo de Banorte Empresarial",
-            "Reúne la documentación necesaria (RFC, estados financieros, identificación)",
-            "Visita la sucursal más cercana o solicita en línea",
-            "Recibe asesoría personalizada sobre los productos que mejor se adapten a tu negocio"
-          ]
-        },
-        timestamp: new Date().toISOString()
-      };
-
-      setData(mockData);
-      setLoading(false);
-      return;
+      setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    fetchRecommendations();
+    registerReloadHandler(fetchRecommendations);
+    return () => {
+      unregisterReloadHandler();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getProductIcon = (type: string) => {
     switch (type.toLowerCase()) {
@@ -287,148 +196,77 @@ export default function FinancialRecommendationsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Welcome Message Card */}
+        {/* Bloque: Salud financiera */}
         <View style={styles.card}>
-          <View style={styles.banorteHeader}>
-            <MaterialCommunityIcons name="bank" size={40} color="#FF0000" />
-            <View style={styles.banorteInfo}>
-              <Text style={styles.banorteTitle}>Banorte Empresarial</Text>
-              <Text style={styles.banorteSubtitle}>Soluciones financieras para tu negocio</Text>
-            </View>
+          <View style={styles.cardHeader}>
+            <MaterialCommunityIcons name="finance" size={28} color="#4CAF50" />
+            <Text style={styles.cardTitle}>Salud financiera</Text>
           </View>
-          <Text style={styles.overallMessage}>{data.recommendation.overall_message}</Text>
+          <Text style={styles.overallMessage}>Nivel: <Text style={{fontWeight:'bold'}}>{data?.financial_health.level}</Text></Text>
+          <Text style={styles.overallMessage}>Puntaje: <Text style={{fontWeight:'bold'}}>{data?.financial_health.score}</Text></Text>
+          <Text style={styles.overallMessage}>Utilidad mensual: <Text style={{fontWeight:'bold'}}>${data?.financial_health.monthly_profit?.toLocaleString('es-MX')}</Text></Text>
+          <Text style={styles.overallMessage}>Margen de ganancia: <Text style={{fontWeight:'bold'}}>{data?.financial_health.profit_margin}%</Text></Text>
+          <Text style={styles.overallMessage}>Ingresos anuales: <Text style={{fontWeight:'bold'}}>${data?.financial_health.annual_income?.toLocaleString('es-MX')}</Text></Text>
         </View>
 
-        {/* Products Section */}
+        {/* Bloque: Opciones de crédito */}
         <View style={styles.sectionHeader}>
-          <MaterialCommunityIcons name="package-variant" size={24} color="#000000" />
-          <Text style={styles.sectionTitle}>Productos Recomendados</Text>
+          <MaterialCommunityIcons name="credit-card-outline" size={24} color="#2196F3" />
+          <Text style={styles.sectionTitle}>Opciones de crédito</Text>
         </View>
-
-        {data.recommendation.products.map((product, index) => (
-          <View key={index} style={styles.card}>
-            <View style={styles.productHeader}>
-              <View style={[styles.productIconContainer, { backgroundColor: `${getProductColor(product.type)}20` }]}>
-                <MaterialCommunityIcons 
-                  name={getProductIcon(product.type) as any} 
-                  size={28} 
-                  color={getProductColor(product.type)} 
-                />
-              </View>
-              <View style={styles.productTitleContainer}>
-                <Text style={styles.productName}>{product.name}</Text>
-                <View style={[styles.productTypeBadge, { backgroundColor: getProductColor(product.type) }]}>
-                  <Text style={styles.productTypeText}>{product.type}</Text>
-                </View>
-              </View>
-            </View>
-
-            <Text style={styles.productDescription}>{product.description}</Text>
-
-            {/* Beneficios */}
-            <View style={styles.subsection}>
-              <Text style={styles.subsectionTitle}>✓ Beneficios</Text>
-              {product.benefits.map((benefit, idx) => (
-                <View key={idx} style={styles.listItem}>
-                  <View style={styles.bulletPoint} />
-                  <Text style={styles.listItemText}>{benefit}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Requisitos */}
-            <View style={styles.subsection}>
-              <Text style={styles.subsectionTitle}>📋 Requisitos</Text>
-              {product.requirements.map((req, idx) => (
-                <View key={idx} style={styles.listItem}>
-                  <View style={styles.bulletPoint} />
-                  <Text style={styles.listItemText}>{req}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Info adicional */}
-            {(product.interest_rate || product.credit_limit) && (
-              <View style={styles.productDetailsContainer}>
-                {product.interest_rate && (
-                  <View style={styles.productDetailItem}>
-                    <Text style={styles.productDetailLabel}>Tasa de interés</Text>
-                    <Text style={styles.productDetailValue}>{product.interest_rate}</Text>
-                  </View>
-                )}
-                {product.credit_limit && (
-                  <View style={styles.productDetailItem}>
-                    <Text style={styles.productDetailLabel}>Límite de crédito</Text>
-                    <Text style={styles.productDetailValue}>{product.credit_limit}</Text>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* Recomendado para */}
-            <View style={styles.recommendedForContainer}>
-              <MaterialCommunityIcons name="information" size={16} color="#666666" />
-              <Text style={styles.recommendedForText}>{product.recommended_for}</Text>
-            </View>
-
-            {/* Botón de acción */}
-            {product.url && (
-              <TouchableOpacity 
-                style={styles.productButton}
-                onPress={() => openUrl(product.url!)}
-              >
-                <Text style={styles.productButtonText}>Más información</Text>
-                <MaterialIcons name="open-in-new" size={18} color="#FFFFFF" />
-              </TouchableOpacity>
-            )}
+        {data?.credit_options.map((option, idx) => (
+          <View key={idx} style={styles.card}>
+            <Text style={styles.productName}>{option.title}</Text>
+            <Text style={styles.productDescription}>{option.description}</Text>
+            <TouchableOpacity onPress={() => Linking.openURL(option.source)}>
+              <Text style={{color:'#2196F3',marginTop:8}}>Ver fuente</Text>
+            </TouchableOpacity>
+            <Text style={styles.recommendedForText}>Relevancia: {option.relevance}</Text>
           </View>
         ))}
 
-        {/* Additional Benefits Card */}
+        {/* Bloque: Deducciones fiscales */}
+        <View style={styles.sectionHeader}>
+          <MaterialCommunityIcons name="file-document-outline" size={24} color="#FF9800" />
+          <Text style={styles.sectionTitle}>Deducciones fiscales</Text>
+        </View>
+        {data?.tax_deductions.map((ded, idx) => (
+          <View key={idx} style={styles.card}>
+            <Text style={styles.productName}>{ded.title}</Text>
+            <Text style={styles.productDescription}>{ded.description}</Text>
+            <TouchableOpacity onPress={() => Linking.openURL(ded.source)}>
+              <Text style={{color:'#FF9800',marginTop:8}}>Ver fuente</Text>
+            </TouchableOpacity>
+            <Text style={styles.recommendedForText}>Relevancia: {ded.relevance}</Text>
+          </View>
+        ))}
+
+        {/* Bloque: Recomendaciones */}
+        <View style={styles.sectionHeader}>
+          <MaterialCommunityIcons name="lightbulb-on-outline" size={24} color="#FFD700" />
+          <Text style={styles.sectionTitle}>Recomendaciones</Text>
+        </View>
+        {data?.recommendations.map((rec, idx) => (
+          <View key={idx} style={styles.card}>
+            <Text style={styles.productName}>{rec.title}</Text>
+            <Text style={styles.productDescription}>{rec.description}</Text>
+            <Text style={styles.recommendedForText}>Prioridad: {rec.priority}</Text>
+            <Text style={styles.recommendedForText}>Acción sugerida: {rec.action}</Text>
+          </View>
+        ))}
+
+        {/* Bloque: Perfil */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="star-circle" size={24} color="#FFD700" />
-            <Text style={styles.cardTitle}>Beneficios Adicionales</Text>
+            <MaterialCommunityIcons name="account-circle" size={24} color="#000000" />
+            <Text style={styles.cardTitle}>Perfil</Text>
           </View>
-          {data.recommendation.additional_benefits.map((benefit, index) => (
-            <View key={index} style={styles.benefitItem}>
-              <MaterialCommunityIcons name="check-circle" size={20} color="#4CAF50" />
-              <Text style={styles.benefitText}>{benefit}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Next Steps Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="format-list-numbered" size={24} color="#000000" />
-            <Text style={styles.cardTitle}>Próximos Pasos</Text>
-          </View>
-          {data.recommendation.next_steps.map((step, index) => (
-            <View key={index} style={styles.stepItem}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>{index + 1}</Text>
-              </View>
-              <Text style={styles.stepText}>{step}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Contact Button */}
-        <TouchableOpacity 
-          style={styles.contactButton}
-          onPress={() => openUrl("https://www.banorte.com/empresas/contacto")}
-        >
-          <MaterialCommunityIcons name="phone" size={24} color="#FFFFFF" />
-          <Text style={styles.contactButtonText}>Contactar a Banorte</Text>
-        </TouchableOpacity>
-
-        {/* Timestamp */}
-        <View style={styles.timestampContainer}>
-          <MaterialCommunityIcons name="clock-outline" size={16} color="#999999" />
-          <Text style={styles.timestampText}>
-            Actualizado: {new Date(data.timestamp).toLocaleString("es-MX")}
-          </Text>
+          <Text style={styles.overallMessage}>Actividad: <Text style={{fontWeight:'bold'}}>{data?.profile.actividad}</Text></Text>
+          <Text style={styles.overallMessage}>Ingresos mensuales: <Text style={{fontWeight:'bold'}}>${data?.profile.monthly_income?.toLocaleString('es-MX')}</Text></Text>
+          <Text style={styles.overallMessage}>Gastos mensuales: <Text style={{fontWeight:'bold'}}>${data?.profile.monthly_expenses?.toLocaleString('es-MX')}</Text></Text>
+          <Text style={styles.overallMessage}>RFC: <Text style={{fontWeight:'bold'}}>{data?.profile.has_rfc ? 'Sí' : 'No'}</Text></Text>
+          <Text style={styles.overallMessage}>Régimen: <Text style={{fontWeight:'bold'}}>{data?.profile.regime}</Text></Text>
+          <Text style={styles.overallMessage}>Empleados: <Text style={{fontWeight:'bold'}}>{data?.profile.employees}</Text></Text>
         </View>
       </ScrollView>
     </SafeAreaView>
