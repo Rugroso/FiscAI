@@ -161,25 +161,6 @@ export default function RegisterScreen() {
           <Text style={styles.title}>Registro</Text>
 
           <View style={styles.formSection}>
-            <TouchableOpacity
-              style={styles.imagePickerContainer}
-              onPress={pickProfileImage}
-            >
-              {profilePicture ? (
-                <Image
-                  source={{ uri: profilePicture }}
-                  style={styles.profileImage}
-                />
-              ) : (
-                <View style={styles.imagePlaceholder}>
-                  <Feather name="camera" size={32} color="#999" />
-                  <Text style={styles.imagePlaceholderText}>Foto de Perfil</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <Text style={styles.helperText}>
-              Selecciona una foto de perfil para tu cuenta (opcional)
-            </Text>
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Correo Electrónico</Text>

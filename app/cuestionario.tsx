@@ -1,8 +1,8 @@
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
- import { supabase } from "@/supabase";
- import Auth from "expo-auth-session";
+import { supabase } from "@/supabase";
+import { useAuth } from "@/context/AuthContext";
 
 const questions = [
   { id: 1, text: "Inserta el nombre de tu negocio", key: "businessName", placeholder: "Ej. Taquería Los Primos", type: "text" },
@@ -85,6 +85,7 @@ export default function Cuestionario() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { user } = useAuth();
 
   const handleNext = async (valueOverride?: any) => {
     const { key, type } = questions[current];
@@ -110,15 +111,30 @@ export default function Cuestionario() {
 
     try {
       setLoading(true);
+      
+      if (!user?.id) {
+        Alert.alert("Error", "Debes iniciar sesión para continuar.");
+        router.replace("/login");
+        return;
+      }
+
       console.log("Subiendo respuestas:", updated);
 
       const { error } = await supabase.from("businesses").insert([
-        { ...updated, created_at: new Date().toISOString() },
+        { 
+          ...updated, 
+          user_id: user.id,
+          created_at: new Date().toISOString() 
+        },
       ]);
-      if (error) throw error;
+      
+      if (error) {
+        console.error("Error de Supabase:", error);
+        throw error;
+      }
 
-       Alert.alert("Éxito", "¡Tus respuestas fueron guardadas con éxito!");
-      router.replace("/(drawer)/(tabs)/stackhome/index" as any);
+      Alert.alert("Éxito", "¡Tus respuestas fueron guardadas con éxito!");
+      router.replace("/(drawer)/(tabs)/stackhome");
     } catch (err) {
       console.error(err);
       Alert.alert("Error", "No se pudieron guardar tus respuestas.");
