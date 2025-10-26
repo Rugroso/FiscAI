@@ -16,7 +16,11 @@ export default function EditBusinessPage() {
   const fetchBusiness = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.from("businesses").select("*").single();
+const { data, error } = await supabase
+  .from("businesses")
+  .select("*")
+  .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
+  .single();
       if (error) throw error;
       setBusiness(data);
     } catch (error) {

@@ -14,6 +14,32 @@ import {
     TouchableOpacity,
     View
 } from "react-native";
+import { supabase } from "@/supabase";
+
+interface BusinessData {
+  id: string;
+  user_id: string;
+  businessName: string | null;
+  actividad: string | null;
+  monthly_income: number | null;
+  monthly_expenses: number | null;
+  net_profit: number | null;
+  profit_margin: number | null;
+  cash_flow: number | null;
+  debt_ratio: number | null;
+  business_age_years: number | null;
+  employees: number | null;
+  digitalization_score: number | null;
+  metodos_pago: string | null;
+  has_rfc: boolean;
+  has_efirma: boolean;
+  emite_cfdi: boolean;
+  declara_mensual: boolean;
+  access_to_credit: boolean;
+  formal: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 interface ProfileData {
   actividad: string;
@@ -66,27 +92,85 @@ export default function InformalScreen() {
 
   useEffect(() => {
     fetchRecommendation();
-  }, []);
+  }, [user?.id]);
 
   const fetchRecommendation = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Datos de ejemplo - En producción, estos vendrían de un formulario o del contexto del usuario
+      // Verificar que el usuario esté autenticado
+      if (!user?.id) {
+        setError("Usuario no autenticado");
+        Alert.alert("Error", "Debes iniciar sesión para ver recomendaciones");
+        return;
+      }
+
+      console.log('📊 Obteniendo datos del negocio...');
+
+      const { data: businessData, error: businessError } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (businessError) {
+        console.error('❌ Error obteniendo datos del negocio:', businessError);
+        setError("No se encontraron datos del negocio");
+        Alert.alert(
+          "Sin Datos",
+          "Primero debes completar el cuestionario de tu negocio",
+          [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Ir al Cuestionario", onPress: () => router.push('/cuestionario') }
+          ]
+        );
+        return;
+      }
+
+      if (!businessData) {
+        setError("No se encontraron datos del negocio");
+        Alert.alert(
+          "Sin Datos",
+          "Primero debes completar el cuestionario de tu negocio",
+          [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Ir al Cuestionario", onPress: () => router.push('/cuestionario') }
+          ]
+        );
+        return;
+      }
+
+
+      let metodosPagoArray: string[] = [];
+      if (businessData.metodos_pago) {
+        try {
+          metodosPagoArray = typeof businessData.metodos_pago === 'string' 
+            ? JSON.parse(businessData.metodos_pago) 
+            : businessData.metodos_pago;
+        } catch (e) {
+          console.warn('⚠️ Error parseando metodos_pago, usando array vacío');
+          metodosPagoArray = [];
+        }
+      }
+
+      const ingresosAnuales = (businessData.monthly_income || 0) * 12;
+
       const profileData = {
         profile: {
-          actividad: "Diseñador gráfico freelance",
-          ingresos_anuales: 450000,
-          empleados: 0,
-          metodos_pago: ["transferencia", "efectivo"],
-          estado: "Ciudad de México",
-          has_rfc: true,
-          has_efirma: true,
-          emite_cfdi: true,
-          declara_mensual: true,
+          actividad: businessData.actividad || "Sin especificar",
+          ingresos_anuales: ingresosAnuales,
+          empleados: businessData.employees || 0,
+          metodos_pago: metodosPagoArray,
+          estado: user.location || "Sin especificar",
+          has_rfc: businessData.has_rfc || false,
+          has_efirma: businessData.has_efirma || false,
+          emite_cfdi: businessData.emite_cfdi || false,
+          declara_mensual: businessData.declara_mensual || false,
         },
       };
+
+      console.log('🚀 Enviando petición con datos reales:', profileData);
 
       const response = await fetch(
         "https://d8pgui6dhb.execute-api.us-east-2.amazonaws.com/recommendation",
@@ -99,18 +183,47 @@ export default function InformalScreen() {
         }
       );
 
+
       if (!response.ok) {
         throw new Error("Error al obtener la recomendación");
       }
 
-      const result: ApiResponse = await response.json();
-      setData(result);
-      // Al obtener recomendación, marcamos Perfil y Régimen como completados
-      markDone('perfil');
-      markDone('regimen');
-      setActive('obligaciones');
+      const result = await response.json();
+
+      let recommendationText = result.recommendation;
+      let sources = result.sources || [];
+      let matchesCount = result.matches_count || 0;
+
+      if (typeof recommendationText === 'string' && recommendationText.startsWith('{')) {
+        try {
+          const parsedRecommendation = JSON.parse(recommendationText);
+          
+          if (parsedRecommendation.success && parsedRecommendation.data) {
+            recommendationText = parsedRecommendation.data.recommendation || recommendationText;
+            sources = parsedRecommendation.data.sources || sources;
+            matchesCount = parsedRecommendation.data.matches_count || matchesCount;
+          } else if (parsedRecommendation.recommendation) {
+            recommendationText = parsedRecommendation.recommendation;
+          }
+        } catch (e) {
+          console.warn('⚠️ No se pudo parsear recommendation, usando como está');
+        }
+      }
+
+      const transformedData: ApiResponse = {
+        success: result.success,
+        profile: result.profile,
+        risk: result.risk,
+        recommendation: recommendationText,
+        sources: sources,
+        matches_count: matchesCount,
+        timestamp: result.timestamp,
+      };
+
+      console.log('✅ Datos transformados:', transformedData);
+      setData(transformedData);
     } catch (err) {
-      console.error("Error:", err);
+      console.error("❌ Error:", err);
       setError(err instanceof Error ? err.message : "Error desconocido");
       Alert.alert("Error", "No se pudo obtener la recomendación fiscal");
     } finally {
@@ -132,11 +245,6 @@ export default function InformalScreen() {
   };
 
   const openUrl = async (url: string) => {
-    if (url === "Libro" || !url || url.startsWith("file:///")) {
-      Alert.alert("Información", "Esta fuente proviene de un libro de referencia fiscal");
-      return;
-    }
-
     try {
       // Limpiar la URL de caracteres extra
       const cleanUrl = url.trim().replace(/[\[\]]/g, "");
@@ -161,6 +269,48 @@ export default function InformalScreen() {
     return null;
   };
 
+  const parseRecommendationSections = (text: string) => {
+    const sections: { title: string; content: string; icon: string }[] = [];
+    
+    const lines = text.split('\n');
+    let currentSection = { title: '', content: '', icon: 'information' };
+    
+    lines.forEach((line) => {
+      const trimmedLine = line.trim();
+      
+      if (trimmedLine.match(/^\*\*\d+\./)) {
+        if (currentSection.title) {
+          sections.push({ ...currentSection });
+        }
+        const titleMatch = trimmedLine.match(/\*\*([^*]+)\*\*/);
+        currentSection = {
+          title: titleMatch ? titleMatch[1] : trimmedLine,
+          content: '',
+          icon: getIconForSection(titleMatch ? titleMatch[1] : trimmedLine),
+        };
+      } else if (trimmedLine) {
+        currentSection.content += (currentSection.content ? '\n' : '') + trimmedLine;
+      }
+    });
+    
+    if (currentSection.title) {
+      sections.push(currentSection);
+    }
+    
+    return sections.length > 0 ? sections : [{ title: 'Recomendación', content: text, icon: 'lightbulb' }];
+  };
+
+  const getIconForSection = (title: string): string => {
+    const titleLower = title.toLowerCase();
+    if (titleLower.includes('régimen')) return 'bank';
+    if (titleLower.includes('obligacion') || titleLower.includes('cumplimiento')) return 'clipboard-check';
+    if (titleLower.includes('beneficio') || titleLower.includes('ventaja')) return 'star';
+    if (titleLower.includes('paso') || titleLower.includes('acción')) return 'foot-print';
+    if (titleLower.includes('documentos') || titleLower.includes('requisitos')) return 'file-document';
+    if (titleLower.includes('plazo') || titleLower.includes('fecha')) return 'calendar-clock';
+    return 'information';
+  };
+
   const renderFormattedText = (text: string) => {
     const parts: React.ReactNode[] = [];
     let key = 0;
@@ -180,7 +330,6 @@ export default function InformalScreen() {
       let segmentKey = 0;
 
       while (currentText.length > 0) {
-        // Buscar texto en negrita (**texto**)
         const boldMatch = currentText.match(/^(.*?)\*\*([^*]+)\*\*/);
         if (boldMatch) {
           if (boldMatch[1]) {
@@ -199,7 +348,6 @@ export default function InformalScreen() {
           continue;
         }
 
-        // Buscar texto en cursiva (*texto*)
         const italicMatch = currentText.match(/^(.*?)\*([^*]+)\*/);
         if (italicMatch) {
           if (italicMatch[1]) {
@@ -277,7 +425,43 @@ export default function InformalScreen() {
       </View> */}
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Risk Score Card */}
+        {/* Régimen Fiscal Destacado - PRIMERO */}
+        {extractRegimen(data.recommendation) && (
+          <View style={styles.regimenHeroCard}>
+            <View style={styles.regimenHeroIcon}>
+              <MaterialCommunityIcons name="trophy" size={40} color="#FFD700" />
+            </View>
+            <Text style={styles.regimenHeroLabel}>Tu Régimen Fiscal Ideal</Text>
+            <Text style={styles.regimenHeroValue}>{extractRegimen(data.recommendation)}</Text>
+            <View style={styles.regimenHeroBadge}>
+              <MaterialCommunityIcons name="check-circle" size={16} color="#FFFFFF" />
+              <Text style={styles.regimenHeroBadgeText}>Recomendación Personalizada</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Recomendaciones Interactivas - SEGUNDO */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <MaterialCommunityIcons name="lightbulb" size={24} color="#FFD700" />
+            <Text style={styles.cardTitle}>Pasos Recomendados</Text>
+          </View>
+          
+          {parseRecommendationSections(data.recommendation).map((section, index) => (
+            <View key={index} style={styles.recommendationSection}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionIconContainer}>
+                  <MaterialCommunityIcons name={section.icon as any} size={24} color="#FFFFFF" />
+                </View>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+              </View>
+              <View style={styles.sectionContent}>
+                {renderFormattedText(section.content)}
+              </View>
+            </View>
+          ))}
+        </View>
+
         <View style={styles.card}>
           <View style={styles.riskHeader}>
             <MaterialCommunityIcons name="shield-check" size={32} color={getRiskColor(data.risk.level)} />
@@ -333,63 +517,7 @@ export default function InformalScreen() {
           </View>
         </View>
 
-        {/* Profile Info Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="account-details" size={24} color="#000000" />
-            <Text style={styles.cardTitle}>Tu Perfil Fiscal</Text>
-          </View>
-          <View style={styles.profileGrid}>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Actividad</Text>
-              <Text style={styles.profileValue}>{data.profile.actividad}</Text>
-            </View>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Ingresos Anuales</Text>
-              <Text style={styles.profileValue}>
-                ${data.profile.ingresos_anuales.toLocaleString("es-MX")}
-              </Text>
-            </View>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Empleados</Text>
-              <Text style={styles.profileValue}>{data.profile.empleados}</Text>
-            </View>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Estado</Text>
-              <Text style={styles.profileValue}>{data.profile.estado}</Text>
-            </View>
-            <View style={styles.profileItemFull}>
-              <Text style={styles.profileLabel}>Métodos de Pago</Text>
-              <View style={styles.tagsContainer}>
-                {data.profile.metodos_pago.map((metodo, index) => (
-                  <View key={index} style={styles.tag}>
-                    <Text style={styles.tagText}>{metodo}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Recommendation Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="lightbulb" size={24} color="#FFD700" />
-            <Text style={styles.cardTitle}>Recomendación Personalizada</Text>
-          </View>
-          
-          {/* Régimen Fiscal Destacado */}
-          {extractRegimen(data.recommendation) && (
-            <View style={styles.regimenContainer}>
-              <Text style={styles.regimenLabel}>Régimen Fiscal Recomendado</Text>
-              <Text style={styles.regimenValue}>{extractRegimen(data.recommendation)}</Text>
-            </View>
-          )}
-          
-          {renderFormattedText(data.recommendation)}
-        </View>
-
-        {/* Sources Card */}
+        {/* Fuentes Consultadas */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <MaterialCommunityIcons name="book-open-variant" size={24} color="#000000" />
@@ -434,6 +562,18 @@ export default function InformalScreen() {
             );
           })}
         </View>
+
+        {/* Profile Info Card - ÚLTIMO (colapsable) */}
+        <TouchableOpacity 
+          style={styles.collapsibleCard}
+          onPress={() => {/* Puedes agregar estado para expandir/colapsar */}}
+        >
+          <View style={styles.cardHeader}>
+            <MaterialCommunityIcons name="account-details" size={24} color="#666666" />
+            <Text style={[styles.cardTitle, { color: '#666666' }]}>Tu Perfil Fiscal</Text>
+            <MaterialCommunityIcons name="chevron-down" size={24} color="#666666" />
+          </View>
+        </TouchableOpacity>
 
         {/* Timestamp */}
         <View style={styles.timestampContainer}>
@@ -721,5 +861,99 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#999999",
     marginLeft: 6,
+  },
+  // Nuevos estilos para el régimen hero
+  regimenHeroCard: {
+    backgroundColor: "#000000",
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 20,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  regimenHeroIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255, 215, 0, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  regimenHeroLabel: {
+    fontSize: 14,
+    color: "#FFFFFF",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    opacity: 0.9,
+  },
+  regimenHeroValue: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  regimenHeroBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  regimenHeroBadgeText: {
+    fontSize: 12,
+    color: "#FFFFFF",
+    marginLeft: 6,
+    fontWeight: "600",
+  },
+  // Estilos para secciones de recomendación
+  recommendationSection: {
+    marginBottom: 20,
+    borderRadius: 12,
+    backgroundColor: "#F9F9F9",
+    overflow: "hidden",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#000000",
+    padding: 16,
+  },
+  sectionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  sectionTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  sectionContent: {
+    padding: 16,
+  },
+  // Estilo para card colapsable
+  collapsibleCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });

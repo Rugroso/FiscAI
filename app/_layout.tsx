@@ -1,23 +1,19 @@
 import { AuthProvider } from '@/context/AuthContext';
 import { ProgressProvider } from '@/context/ProgressContext';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <AuthProvider>
       <ProgressProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <ThemeProvider value={DefaultTheme}>
             <Stack>
               <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
               <Stack.Screen name="login" options={{ headerShown: false }} />
@@ -25,7 +21,7 @@ export default function RootLayout() {
               <Stack.Screen name="cuestionario" options={{ headerShown: false }} />
               <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
             </Stack>
-            <StatusBar style="auto" />
+            <StatusBar style="dark" />
         </ThemeProvider>
       </ProgressProvider>
     </AuthProvider>
