@@ -43,7 +43,6 @@ export default function StackChatLayout() {
                   ),
               }}
             />
-       <Stack.Screen name="doctor" options={{ headerTitle: "Detalle" }} />
     </Stack>
   );
 }

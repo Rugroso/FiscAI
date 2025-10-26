@@ -27,6 +27,7 @@ export const ENDPOINTS = {
   userContext: "/user-context",
   fiscalConsultation: "/fiscal-consultation",
   riskAssessment: "/risk-assessment",
+  recommendation: "/recommendation",
 } as const;
 
 export function url(path: string) {
