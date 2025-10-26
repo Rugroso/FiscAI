@@ -116,27 +116,6 @@ function CustomDrawerContent() {
               <View style={styles.dividerItems} />
             </View>
           ))}
-        
-        <View style={styles.themeContainer}>
-          <View style={styles.themeTextContainer}>
-            <MaterialCommunityIcons 
-              name={isDarkMode ? "weather-night" : "white-balance-sunny"} 
-              size={24} 
-              color="#1a1a1a" 
-            />
-            <Text style={styles.themeText}>
-              {isDarkMode ? "Modo Oscuro" : "Modo Claro"}
-            </Text>
-          </View>
-          <Switch
-            trackColor={{ false: "#000000", true: "gray" }}
-            thumbColor={isDarkMode ? "#ffffff" : "#ffffff"}
-            ios_backgroundColor="#3e3e3e"
-            onValueChange={toggleTheme}
-            value={isDarkMode}
-          />
-        </View> 
-
         </View>
       </View>
       
