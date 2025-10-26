@@ -144,7 +144,7 @@ const cardData = [
           <Pressable
             onPress={() => router.push("/(drawer)/(tabs)/stackhome/beneficios")}
           >
-            <Text style={styles.beneficios}>Beneficios de nuestra <Text style={styles.rojo}>app</Text></Text>
+            <Text style={styles.beneficios}>Beneficios de nuestra <Text>app</Text></Text>
           <CarouselCard data={cardData} interval={2500} />
           </Pressable>
         </View>

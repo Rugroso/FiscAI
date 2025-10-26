@@ -181,7 +181,6 @@ export default function InformalScreen() {
         }
       );
 
-      console.log('📥 Respuesta recibida del servidor', response);
 
       if (!response.ok) {
         throw new Error("Error al obtener la recomendación");
@@ -210,13 +209,33 @@ export default function InformalScreen() {
       }
 
       const transformedData: ApiResponse = {
-        success: result.success,
-        profile: result.profile,
-        risk: result.risk,
-        recommendation: recommendationText,
-        sources: sources,
-        matches_count: matchesCount,
-        timestamp: result.timestamp,
+        success: result.success ?? false,
+        profile: result.profile ?? {
+          actividad: "Sin especificar",
+          ingresos_anuales: 0,
+          empleados: 0,
+          metodos_pago: [],
+          estado: "Sin especificar",
+          has_rfc: false,
+          has_efirma: false,
+          emite_cfdi: false,
+          declara_mensual: false,
+        },
+        risk: result.risk ?? {
+          score: 0,
+          level: "Desconocido",
+          message: "No se pudo determinar el nivel de riesgo",
+          details: {
+            has_rfc: false,
+            has_efirma: false,
+            emite_cfdi: false,
+            declara_mensual: false,
+          }
+        },
+        recommendation: recommendationText || "No se generó ninguna recomendación.",
+        sources: sources || [],
+        matches_count: matchesCount || 0,
+        timestamp: result.timestamp || new Date().toISOString(),
       };
 
       setData(transformedData);
@@ -262,21 +281,37 @@ export default function InformalScreen() {
   };
 
   const extractRegimen = (text: string): string | null => {
-    // Buscar el régimen fiscal en diferentes formatos
-    // Formato 1: "**Régimen de Actividades Profesionales (Honorarios):**"
-    let regimenMatch = text.match(/\*\*\s*([^*:]+\([^)]+\))\s*:\*\*/i);
+    // Verificar que el texto no esté vacío
+    if (!text || text.trim().length === 0) {
+      return null;
+    }
+
+    // Formato 1: "* **Régimen:** Régimen de Actividades Profesionales (honorarios)."
+    let regimenMatch = text.match(/\*\s*\*\*Régimen:\*\*\s*([^.\n]+)/i);
+    if (regimenMatch) {
+      return regimenMatch[1].trim();
+    }
+
+    // Formato 2: "**Régimen de Actividades Profesionales (Honorarios):**"
+    regimenMatch = text.match(/\*\*\s*([^*:]+\([^)]+\))\s*:\*\*/i);
     if (regimenMatch) {
       return regimenMatch[1].trim();
     }
     
-    // Formato 2: "el régimen fiscal más adecuado...: **régimen**"
+    // Formato 3: "el régimen fiscal más adecuado...: **régimen**"
     regimenMatch = text.match(/el régimen fiscal más [^:]*:\s*\*\*([^*]+)\*\*/i);
     if (regimenMatch) {
       return regimenMatch[1].trim();
     }
     
-    // Formato 3: Buscar en la primera sección después de "1)"
+    // Formato 4: Buscar en la primera sección después de "1)"
     regimenMatch = text.match(/\*\*1\)[^:]*:\*\*\s*\n\s*\*\s*\*\*([^*:]+):/i);
+    if (regimenMatch) {
+      return regimenMatch[1].trim();
+    }
+
+    // Formato 5: Buscar "Régimen:" seguido de texto hasta punto o salto de línea
+    regimenMatch = text.match(/Régimen:\s*([^.\n]+)/i);
     if (regimenMatch) {
       return regimenMatch[1].trim();
     }
@@ -287,9 +322,24 @@ export default function InformalScreen() {
   const parseRecommendationSections = (text: string) => {
     const sections: { title: string; content: string; icon: string }[] = [];
     
-    // Buscar secciones numeradas: **1) Título:** o **2) Título:**
-    const sectionRegex = /\*\*(\d+)\)\s*([^:*]+):\*\*/g;
-    const matches = [...text.matchAll(sectionRegex)];
+    // Verificar si el texto está vacío o es muy corto
+    if (!text || text.trim().length === 0) {
+      return [{
+        title: 'Sin recomendaciones',
+        content: 'No se pudieron generar recomendaciones en este momento. Por favor, intenta nuevamente.',
+        icon: 'alert-circle-outline'
+      }];
+    }
+    
+    // Buscar secciones numeradas con punto: **1. Título:** o **2. Título:**
+    const sectionRegexDot = /\*\*(\d+)\.\s*([^:*]+):\*\*/g;
+    let matches = [...text.matchAll(sectionRegexDot)];
+    
+    // Si no encuentra con punto, buscar con paréntesis: **1) Título:**
+    if (matches.length === 0) {
+      const sectionRegexParen = /\*\*(\d+)\)\s*([^:*]+):\*\*/g;
+      matches = [...text.matchAll(sectionRegexParen)];
+    }
     
     if (matches.length > 0) {
       matches.forEach((match, index) => {
@@ -319,7 +369,7 @@ export default function InformalScreen() {
     // Si no hay secciones numeradas, usar el texto completo
     if (sections.length === 0) {
       sections.push({ 
-        title: 'Recomendación', 
+        title: 'Recomendación General', 
         content: text, 
         icon: 'lightbulb' 
       });
@@ -476,6 +526,20 @@ export default function InformalScreen() {
       </View> */}
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Warning for insufficient data */}
+        {data.recommendation && data.recommendation.toLowerCase().includes('información insuficiente') && (
+          <View style={styles.warningCard}>
+            <MaterialCommunityIcons name="alert" size={32} color="#FF9800" />
+            <View style={styles.warningContent}>
+              <Text style={styles.warningTitle}>Información Limitada</Text>
+              <Text style={styles.warningText}>
+                La base de conocimientos no tiene suficiente información para tu perfil específico. 
+                Las recomendaciones pueden ser generales.
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Régimen Fiscal Destacado - PRIMERO */}
         {extractRegimen(data.recommendation) && (
           <View style={styles.regimenHeroCard}>
@@ -515,53 +579,55 @@ export default function InformalScreen() {
 
         <View style={styles.card}>
           <View style={styles.riskHeader}>
-            <MaterialCommunityIcons name="shield-check" size={32} color={getRiskColor(data.risk.level)} />
+            <MaterialCommunityIcons name="shield-check" size={32} color={getRiskColor(data.risk?.level || 'Desconocido')} />
             <View style={styles.riskInfo}>
               <Text style={styles.riskTitle}>Nivel de Riesgo</Text>
               <View style={styles.riskBadge}>
-                <View style={[styles.riskDot, { backgroundColor: getRiskColor(data.risk.level) }]} />
-                <Text style={[styles.riskLevel, { color: getRiskColor(data.risk.level) }]}>{data.risk.level}</Text>
+                <View style={[styles.riskDot, { backgroundColor: getRiskColor(data.risk?.level || 'Desconocido') }]} />
+                <Text style={[styles.riskLevel, { color: getRiskColor(data.risk?.level || 'Desconocido') }]}>
+                  {data.risk?.level || 'Desconocido'}
+                </Text>
               </View>
             </View>
             <View style={styles.scoreContainer}>
-              <Text style={styles.scoreNumber}>{data.risk.score}</Text>
+              <Text style={styles.scoreNumber}>{data.risk?.score || 0}</Text>
               <Text style={styles.scoreLabel}>Score</Text>
             </View>
           </View>
-          <Text style={styles.riskMessage}>{data.risk.message}</Text>
+          <Text style={styles.riskMessage}>{data.risk?.message || 'No hay información de riesgo disponible'}</Text>
 
           {/* Risk Details */}
           <View style={styles.detailsContainer}>
             <Text style={styles.detailsTitle}>Estado de Cumplimiento:</Text>
             <View style={styles.detailRow}>
               <MaterialCommunityIcons
-                name={data.risk.details.has_rfc ? "check-circle" : "close-circle"}
+                name={data.risk?.details?.has_rfc ? "check-circle" : "close-circle"}
                 size={20}
-                color={data.risk.details.has_rfc ? "#4CAF50" : "#FF0000"}
+                color={data.risk?.details?.has_rfc ? "#4CAF50" : "#FF0000"}
               />
               <Text style={styles.detailText}>RFC Registrado</Text>
             </View>
             <View style={styles.detailRow}>
               <MaterialCommunityIcons
-                name={data.risk.details.has_efirma ? "check-circle" : "close-circle"}
+                name={data.risk?.details?.has_efirma ? "check-circle" : "close-circle"}
                 size={20}
-                color={data.risk.details.has_efirma ? "#4CAF50" : "#FF0000"}
+                color={data.risk?.details?.has_efirma ? "#4CAF50" : "#FF0000"}
               />
               <Text style={styles.detailText}>e.firma Vigente</Text>
             </View>
             <View style={styles.detailRow}>
               <MaterialCommunityIcons
-                name={data.risk.details.emite_cfdi ? "check-circle" : "close-circle"}
+                name={data.risk?.details?.emite_cfdi ? "check-circle" : "close-circle"}
                 size={20}
-                color={data.risk.details.emite_cfdi ? "#4CAF50" : "#FF0000"}
+                color={data.risk?.details?.emite_cfdi ? "#4CAF50" : "#FF0000"}
               />
               <Text style={styles.detailText}>Emite CFDI</Text>
             </View>
             <View style={styles.detailRow}>
               <MaterialCommunityIcons
-                name={data.risk.details.declara_mensual ? "check-circle" : "close-circle"}
+                name={data.risk?.details?.declara_mensual ? "check-circle" : "close-circle"}
                 size={20}
-                color={data.risk.details.declara_mensual ? "#4CAF50" : "#FF0000"}
+                color={data.risk?.details?.declara_mensual ? "#4CAF50" : "#FF0000"}
               />
               <Text style={styles.detailText}>Declaración Mensual</Text>
             </View>
@@ -569,50 +635,53 @@ export default function InformalScreen() {
         </View>
 
         {/* Fuentes Consultadas */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="book-open-variant" size={24} color="#000000" />
-            <Text style={styles.cardTitle}>Fuentes Consultadas ({data.matches_count})</Text>
-          </View>
-          {data.sources.map((source, index) => {
-            const isValidUrl = source.url !== "Libro" && 
-                              !source.url.startsWith("file:///") && 
-                              (source.url.startsWith("http://") || source.url.startsWith("https://"));
-            
-            return (
-              <TouchableOpacity
-                key={index}
-                style={styles.sourceItem}
-                onPress={() => openUrl(source.url)}
-                disabled={!isValidUrl}
-              >
-                <View style={styles.sourceIcon}>
-                  <MaterialCommunityIcons
-                    name={isValidUrl ? "web" : "book"}
-                    size={20}
-                    color="#000000"
-                  />
-                </View>
-                <View style={styles.sourceContent}>
-                  <Text style={styles.sourceTitle} numberOfLines={2}>
-                    {source.title}
-                  </Text>
-                  <Text style={styles.sourceScope}>{source.scope}</Text>
-                  <View style={styles.sourceFooter}>
-                    <View style={styles.similarityBadge}>
-                      <Text style={styles.similarityText}>
-                        {(source.similarity * 100).toFixed(0)}% relevancia
-                      </Text>
-                    </View>
-                    {isValidUrl && (
-                      <MaterialIcons name="open-in-new" size={16} color="#999999" />
-                    )}
+        {data.sources && data.sources.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <MaterialCommunityIcons name="book-open-variant" size={24} color="#000000" />
+              <Text style={styles.cardTitle}>Fuentes Consultadas ({data.matches_count || data.sources.length})</Text>
+            </View>
+            {data.sources.map((source, index) => {
+              const isValidUrl = source?.url && 
+                                source.url !== "Libro" && 
+                                !source.url.startsWith("file:///") && 
+                                (source.url.startsWith("http://") || source.url.startsWith("https://"));
+              
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.sourceItem}
+                  onPress={() => isValidUrl && openUrl(source.url)}
+                  disabled={!isValidUrl}
+                >
+                  <View style={styles.sourceIcon}>
+                    <MaterialCommunityIcons
+                      name={isValidUrl ? "web" : "book"}
+                      size={20}
+                      color="#000000"
+                    />
                   </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                  <View style={styles.sourceContent}>
+                    <Text style={styles.sourceTitle} numberOfLines={2}>
+                      {source?.title || 'Sin título'}
+                    </Text>
+                    <Text style={styles.sourceScope}>{source?.scope || 'General'}</Text>
+                    <View style={styles.sourceFooter}>
+                      <View style={styles.similarityBadge}>
+                        <Text style={styles.similarityText}>
+                          {((source?.similarity || 0) * 100).toFixed(0)}% relevancia
+                        </Text>
+                      </View>
+                      {isValidUrl && (
+                        <MaterialIcons name="open-in-new" size={16} color="#999999" />
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         {/* Profile Info Card - ÚLTIMO (colapsable) */}
         <TouchableOpacity 
@@ -1005,5 +1074,31 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  // Estilos para warning card
+  warningCard: {
+    backgroundColor: "#FFF3E0",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    borderLeftWidth: 4,
+    borderLeftColor: "#FF9800",
+  },
+  warningContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#E65100",
+    marginBottom: 6,
+  },
+  warningText: {
+    fontSize: 14,
+    color: "#E65100",
+    lineHeight: 20,
   },
 });

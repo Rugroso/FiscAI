@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, StyleSheet } from "react-native";
-import { supabase } from "@/config/supabase"; 
+import { supabase } from "@/supabase"; 
 import { useRouter } from "expo-router";
 
 export default function EditBusinessPage() {
