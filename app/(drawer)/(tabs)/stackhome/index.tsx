@@ -1,7 +1,5 @@
-import { RiskMeter } from "@/components/riskmeter";
 import { GrowthPotential } from "@/components/growthpotential";
 import Roadmap, { RoadmapStep } from "@/components/roadmap";
-import GoogleCalendar from "@/components/ui/calendar";
 import { useProgress } from "@/context/ProgressContext";
 import CarouselCard from "@/components/ui/carouselCard";
 import { useAuth } from "@/context/AuthContext";
@@ -9,6 +7,10 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState, useEffect } from "react";
 import {supabase} from "@/supabase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
+
 
 import {
   Pressable,
@@ -20,6 +22,14 @@ import {
   View,
 } from "react-native";
 
+
+interface RoadmapData {
+  progressTitle: string;
+  completedSteps: number;
+  totalSteps: number;
+  progressPercent: number;
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -27,7 +37,32 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const { state, setActive } = useProgress();
   const growthMultiplier = 1.4; // Multiplicador de crecimiento anual (ejemplo: x1.4 = 40% de crecimiento)
-  
+  const [progress, setProgress] = useState<RoadmapData | null>(null);
+
+useFocusEffect(
+  useCallback(() => {
+    async function loadRoadmapCache() {
+      try {
+        if (!user?.id) return;
+        const cachedData = await AsyncStorage.getItem(`roadmap_${user.id}`);
+        if (cachedData) {
+          const parsed = JSON.parse(cachedData);
+          setProgress({
+            progressTitle: parsed.progressTitle,
+            completedSteps: parsed.completedSteps,
+            totalSteps: parsed.totalSteps,
+            progressPercent: parsed.progressPercent,
+          });
+        }
+      } catch (err) {
+        console.error("Error loading roadmap cache:", err);
+      }
+    }
+
+    loadRoadmapCache();
+  }, [user?.id])
+);
+
   useEffect(() => {
     async function fetchBusinessName() {
       if (!user?.id) {
@@ -136,10 +171,53 @@ const cardData = [
             currentIndex={state.currentIndex}
             variant="summary"
             title="Tu progreso"
-            showPercent
-            onOpenFull={() => router.push('/(drawer)/(tabs)/stackhome/roadmap')}
           />
+
+        <Pressable
+        onPress={() => router.push("/(drawer)/(tabs)/stackhome/roadmap")}
+
+        >
+    <View style={styles.progressCard}>
+      {progress ? (
+        <>
+          <View style={styles.progressHeader}>
+            <View>
+              <Text style={styles.progressTitle}>
+                {progress.progressTitle || "Progreso"}
+              </Text>
+              <Text style={styles.progressSubtitle}>
+                {progress.completedSteps} de {progress.totalSteps} pasos completados
+              </Text>
+            </View>
+            <View style={styles.progressCircle}>
+              <Text style={styles.progressPercentage}>
+                {progress.progressPercent}%
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.progressBarContainer}>
+            <View
+              style={[
+                styles.progressBar,
+                {
+                  width: `${progress.progressPercent}%`,
+                  backgroundColor:
+                    progress.progressPercent === 100 ? "#10B981" : "#E80000",
+                },
+              ]}
+            />
+          </View>
+        </>
+      ) : (
+        <Text style={styles.loadingText}>Cargando progreso...</Text>
+      )}
+    </View>
+</Pressable>
         </View>
+
+
+        
         <View style={styles.cardben}>
           <Pressable
             onPress={() => router.push("/(drawer)/(tabs)/stackhome/beneficios")}
@@ -174,6 +252,60 @@ const cardData = [
 }
 
 const styles = StyleSheet.create({
+
+  progressCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 0,
+    margin: 5,
+  },
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  progressTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#000",
+  },
+  progressSubtitle: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 4,
+  },
+  progressCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#E80000",
+  },
+  progressPercentage: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  progressBar: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: "#888",
+    textAlign: "center",
+  },
+
+
   container: {
     flex: 1,
     backgroundColor: "#F5F5F5",
