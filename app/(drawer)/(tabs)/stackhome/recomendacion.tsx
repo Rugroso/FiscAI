@@ -7,6 +7,7 @@ import {
     ActivityIndicator,
     Alert,
     Linking,
+    RefreshControl,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -16,6 +17,7 @@ import {
 } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from "@/supabase";
+import { url, ENDPOINTS } from "@/config/api";
 
 interface BusinessData {
   id: string;
@@ -168,8 +170,11 @@ export default function InformalScreen() {
   // Forzar actualización manual
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchRecommendation();
-    setIsRefreshing(false);
+    try {
+      await fetchRecommendation();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const fetchRecommendation = async (existingBusinessData?: BusinessData, existingHash?: string) => {
@@ -247,17 +252,18 @@ export default function InformalScreen() {
       };
 
       console.log('🚀 Enviando petición con datos reales:', profileData);
+      console.log('🔗 URL del endpoint:', url(ENDPOINTS.recommendation));
 
-      const response = await fetch(
-        "https://d8pgui6dhb.execute-api.us-east-2.amazonaws.com/recommendation",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(profileData),
-        }
-      );
+      const response = await fetch(url(ENDPOINTS.recommendation), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
 
 
       if (!response.ok) {
@@ -265,6 +271,8 @@ export default function InformalScreen() {
       }
 
       const result = await response.json();
+      console.log('📦 Response data keys:', Object.keys(result));
+      console.log('📦 Full response:', JSON.stringify(result, null, 2));
 
       let recommendationText = result.recommendation;
       let sources = result.sources || [];
@@ -586,13 +594,6 @@ export default function InformalScreen() {
   if (error || !data) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <MaterialIcons name="arrow-back" size={24} color="#000000" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Recomendación Fiscal</Text>
-          <View style={{ width: 24 }} />
-        </View>
         <View style={styles.errorContainer}>
           <MaterialCommunityIcons name="alert-circle" size={60} color="#FF0000" />
           <Text style={styles.errorText}>{error || "Error al cargar datos"}</Text>
@@ -606,22 +607,18 @@ export default function InformalScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <MaterialIcons name="arrow-back" size={24} color="#000000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Recomendación Fiscal</Text>
-        <TouchableOpacity onPress={handleRefresh} disabled={isRefreshing}>
-          <MaterialCommunityIcons 
-            name="refresh" 
-            size={24} 
-            color={isRefreshing ? "#CCCCCC" : "#000000"} 
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor="#000000"
+            colors={["#000000"]}
           />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        }
+      >
         
         {/* Warning for insufficient data */}
         {data.recommendation && data.recommendation.toLowerCase().includes('información insuficiente') && (
@@ -804,21 +801,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F5F5F5",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#000000",
   },
   loadingContainer: {
     flex: 1,
