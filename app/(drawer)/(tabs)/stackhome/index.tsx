@@ -1,10 +1,9 @@
 import { RiskMeter } from "@/components/riskmeter";
+import { GrowthPotential } from "@/components/growthpotential";
 import Roadmap, { RoadmapStep } from "@/components/roadmap";
 import GoogleCalendar from "@/components/ui/calendar";
 import { useProgress } from "@/context/ProgressContext";
 import CarouselCard from "@/components/ui/carouselCard";
-
-
 import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -24,7 +23,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { state, setActive } = useProgress();
-  const score = 67;
+  const growthMultiplier = 1.4; // Multiplicador de crecimiento anual (ejemplo: x1.4 = 40% de crecimiento)
   const roadmapSteps: RoadmapStep[] = [
     { key: 'perfil', title: 'Perfil fiscal', subtitle: 'Cuéntanos de tu empresa', status: state.perfil },
     { key: 'regimen', title: 'Régimen óptimo', subtitle: 'Recomendación', status: state.regimen },
@@ -84,7 +83,7 @@ export default function HomeScreen() {
             steps={roadmapSteps}
             currentIndex={state.currentIndex}
             variant="summary"
-            title="Avance de formalización"
+            title="Tu progreso"
             showPercent
             onOpenFull={() => router.push('/(drawer)/(tabs)/stackhome/roadmap')}
           />
@@ -92,14 +91,31 @@ export default function HomeScreen() {
 
 
         <View style={styles.card}>
+          <Text>Beneficios Financieros</Text>
           <Pressable
             onPress={() => router.push("/(drawer)/(tabs)/stackhome/beneficios")}
           >
           <CarouselCard data={cardData} interval={2500} />
           </Pressable>
         </View>
+
+
         <View style={styles.card}>
-          <Text></Text>
+          <Text style={styles.cardTitle}>Potencial de crecimiento</Text>
+          <View style={styles.growthContainer}>
+            <View style={styles.riskMeterContainer}>
+              <GrowthPotential multiplier={growthMultiplier} size={160} />
+            </View>
+            <View style={styles.growthLegendContainer}>
+              <Text style={styles.growthLegendTitle}>Proyección Anual</Text>
+              <Text style={styles.growthLegendValue}>
+                {((growthMultiplier - 1) * 100).toFixed(0)}% de crecimiento
+              </Text>
+              <Text style={styles.growthDescription}>
+                Potencial calculado por el modelo de IA de FiscAI
+              </Text>
+            </View>
+          </View>
         </View>
 
       </ScrollView>
@@ -127,6 +143,45 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#000000",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  growthContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+  },
+  riskMeterContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  growthLegendContainer: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  growthLegendTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginBottom: 8,
+  },
+  growthLegendValue: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#10B981",
+    marginBottom: 8,
+  },
+  growthDescription: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    fontStyle: "italic",
+    lineHeight: 16,
   },
   welcomeTitle: {
     fontSize: 20,

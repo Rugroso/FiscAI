@@ -1,7 +1,8 @@
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-// import { supabase } from "../lib/supabase";
+ import { supabase } from "@/supabase";
+ import Auth from "expo-auth-session";
 
 const questions = [
   { id: 1, text: "Inserta el nombre de tu negocio", key: "businessName", placeholder: "Ej. Taquería Los Primos", type: "text" },
@@ -115,13 +116,13 @@ export default function Cuestionario() {
       setLoading(true);
       console.log("Subiendo respuestas:", updated);
 
-      // const { error } = await supabase.from("businesses").insert([
-      //   { ...updated, created_at: new Date().toISOString() },
-      // ]);
-      // if (error) throw error;
+      const { error } = await supabase.from("businesses").insert([
+        { ...updated, created_at: new Date().toISOString() },
+      ]);
+      if (error) throw error;
 
-      // Alert.alert("Éxito", "¡Tus respuestas fueron guardadas con éxito!");
-      router.replace("/(drawer)/(tabs)/stackhome");
+       Alert.alert("Éxito", "¡Tus respuestas fueron guardadas con éxito!");
+      router.replace("/(drawer)/(tabs)/stackhome/index" as any);
     } catch (err) {
       console.error(err);
       Alert.alert("Error", "No se pudieron guardar tus respuestas.");
