@@ -99,14 +99,12 @@ export default function InformalScreen() {
       setLoading(true);
       setError(null);
 
-      // Verificar que el usuario esté autenticado
       if (!user?.id) {
         setError("Usuario no autenticado");
         Alert.alert("Error", "Debes iniciar sesión para ver recomendaciones");
         return;
       }
 
-      console.log('📊 Obteniendo datos del negocio...');
 
       const { data: businessData, error: businessError } = await supabase
         .from('businesses')
@@ -183,6 +181,7 @@ export default function InformalScreen() {
         }
       );
 
+      console.log('📥 Respuesta recibida del servidor', response);
 
       if (!response.ok) {
         throw new Error("Error al obtener la recomendación");
@@ -220,8 +219,11 @@ export default function InformalScreen() {
         timestamp: result.timestamp,
       };
 
-      console.log('✅ Datos transformados:', transformedData);
       setData(transformedData);
+      console.log('✅ Recomendación procesada y estado actualizado');
+      console.log(transformedData);
+
+      
     } catch (err) {
       console.error("❌ Error:", err);
       setError(err instanceof Error ? err.message : "Error desconocido");
@@ -246,7 +248,6 @@ export default function InformalScreen() {
 
   const openUrl = async (url: string) => {
     try {
-      // Limpiar la URL de caracteres extra
       const cleanUrl = url.trim().replace(/[\[\]]/g, "");
       const canOpen = await Linking.canOpenURL(cleanUrl);
       if (canOpen) {
@@ -261,53 +262,88 @@ export default function InformalScreen() {
   };
 
   const extractRegimen = (text: string): string | null => {
-    // Buscar el régimen fiscal en la recomendación
-    const regimenMatch = text.match(/el régimen fiscal más adecuado[^:]*:\s*\*\*([^*]+)\*\*/i);
+    // Buscar el régimen fiscal en diferentes formatos
+    // Formato 1: "**Régimen de Actividades Profesionales (Honorarios):**"
+    let regimenMatch = text.match(/\*\*\s*([^*:]+\([^)]+\))\s*:\*\*/i);
     if (regimenMatch) {
       return regimenMatch[1].trim();
     }
+    
+    // Formato 2: "el régimen fiscal más adecuado...: **régimen**"
+    regimenMatch = text.match(/el régimen fiscal más [^:]*:\s*\*\*([^*]+)\*\*/i);
+    if (regimenMatch) {
+      return regimenMatch[1].trim();
+    }
+    
+    // Formato 3: Buscar en la primera sección después de "1)"
+    regimenMatch = text.match(/\*\*1\)[^:]*:\*\*\s*\n\s*\*\s*\*\*([^*:]+):/i);
+    if (regimenMatch) {
+      return regimenMatch[1].trim();
+    }
+    
     return null;
   };
 
   const parseRecommendationSections = (text: string) => {
     const sections: { title: string; content: string; icon: string }[] = [];
     
-    const lines = text.split('\n');
-    let currentSection = { title: '', content: '', icon: 'information' };
+    // Buscar secciones numeradas: **1) Título:** o **2) Título:**
+    const sectionRegex = /\*\*(\d+)\)\s*([^:*]+):\*\*/g;
+    const matches = [...text.matchAll(sectionRegex)];
     
-    lines.forEach((line) => {
-      const trimmedLine = line.trim();
-      
-      if (trimmedLine.match(/^\*\*\d+\./)) {
-        if (currentSection.title) {
-          sections.push({ ...currentSection });
+    if (matches.length > 0) {
+      matches.forEach((match, index) => {
+        const sectionNumber = match[1];
+        const sectionTitle = match[2].trim();
+        const startIndex = match.index! + match[0].length;
+        const endIndex = index < matches.length - 1 
+          ? matches[index + 1].index! 
+          : text.length;
+        
+        let sectionContent = text.substring(startIndex, endIndex).trim();
+        
+        // Limpiar el contenido: remover la primera línea si está vacía y saltos de línea extra al final
+        sectionContent = sectionContent.replace(/^\n+/, '').replace(/\n+$/, '');
+        
+        // Solo agregar secciones con contenido
+        if (sectionContent) {
+          sections.push({
+            title: sectionTitle,
+            content: sectionContent,
+            icon: getIconForSection(sectionTitle),
+          });
         }
-        const titleMatch = trimmedLine.match(/\*\*([^*]+)\*\*/);
-        currentSection = {
-          title: titleMatch ? titleMatch[1] : trimmedLine,
-          content: '',
-          icon: getIconForSection(titleMatch ? titleMatch[1] : trimmedLine),
-        };
-      } else if (trimmedLine) {
-        currentSection.content += (currentSection.content ? '\n' : '') + trimmedLine;
-      }
-    });
-    
-    if (currentSection.title) {
-      sections.push(currentSection);
+      });
     }
     
-    return sections.length > 0 ? sections : [{ title: 'Recomendación', content: text, icon: 'lightbulb' }];
+    // Si no hay secciones numeradas, usar el texto completo
+    if (sections.length === 0) {
+      sections.push({ 
+        title: 'Recomendación', 
+        content: text, 
+        icon: 'lightbulb' 
+      });
+    }
+    
+    return sections;
   };
 
   const getIconForSection = (title: string): string => {
     const titleLower = title.toLowerCase();
+    
+    // Específicos del nuevo formato
+    if (titleLower.includes('régimen fiscal') || titleLower.includes('régimen más conveniente')) return 'bank';
+    if (titleLower.includes('pasos') && titleLower.includes('formalización')) return 'clipboard-list-outline';
+    if (titleLower.includes('fuentes oficiales') || titleLower.includes('fuentes del sat')) return 'book-open-variant';
+    
+    // Generales
     if (titleLower.includes('régimen')) return 'bank';
     if (titleLower.includes('obligacion') || titleLower.includes('cumplimiento')) return 'clipboard-check';
     if (titleLower.includes('beneficio') || titleLower.includes('ventaja')) return 'star';
     if (titleLower.includes('paso') || titleLower.includes('acción')) return 'foot-print';
     if (titleLower.includes('documentos') || titleLower.includes('requisitos')) return 'file-document';
     if (titleLower.includes('plazo') || titleLower.includes('fecha')) return 'calendar-clock';
+    
     return 'information';
   };
 
@@ -324,12 +360,26 @@ export default function InformalScreen() {
         return;
       }
 
+      // Detectar si es un bullet point (*)
+      const isBullet = line.trim().startsWith('*');
+      const cleanLine = isBullet ? line.trim().substring(1).trim() : line;
+
       // Procesar cada línea para encontrar texto en negrita y cursiva
       const segments: React.ReactNode[] = [];
-      let currentText = line;
+      let currentText = cleanLine;
       let segmentKey = 0;
 
+      // Agregar bullet si es necesario
+      if (isBullet) {
+        segments.push(
+          <Text key={`bullet-${segmentKey++}`} style={styles.recommendationText}>
+            • {' '}
+          </Text>
+        );
+      }
+
       while (currentText.length > 0) {
+        // Buscar texto en negrita (**texto**)
         const boldMatch = currentText.match(/^(.*?)\*\*([^*]+)\*\*/);
         if (boldMatch) {
           if (boldMatch[1]) {
@@ -348,6 +398,7 @@ export default function InformalScreen() {
           continue;
         }
 
+        // Buscar texto en cursiva (*texto*)
         const italicMatch = currentText.match(/^(.*?)\*([^*]+)\*/);
         if (italicMatch) {
           if (italicMatch[1]) {
@@ -376,9 +427,9 @@ export default function InformalScreen() {
       }
 
       parts.push(
-        <Text key={`line-${key++}`} style={{ marginBottom: 4 }}>
-          {segments}
-        </Text>
+        <View key={`line-${key++}`} style={isBullet ? styles.bulletLine : { marginBottom: 4 }}>
+          <Text>{segments}</Text>
+        </View>
       );
     });
 
@@ -447,8 +498,8 @@ export default function InformalScreen() {
         {/* Recomendaciones Interactivas - SEGUNDO */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="lightbulb" size={24} color="#FFD700" />
-            <Text style={styles.cardTitle}>Pasos Recomendados</Text>
+            <MaterialCommunityIcons name="clipboard-list" size={24} color="#000000" />
+            <Text style={styles.cardTitle}>Guía de Formalización</Text>
           </View>
           
           {parseRecommendationSections(data.recommendation).map((section, index) => (
@@ -572,11 +623,6 @@ export default function InformalScreen() {
           style={styles.collapsibleCard}
           onPress={() => {/* Puedes agregar estado para expandir/colapsar */}}
         >
-          <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="account-details" size={24} color="#666666" />
-            <Text style={[styles.cardTitle, { color: '#666666' }]}>Tu Perfil Fiscal</Text>
-            <MaterialCommunityIcons name="chevron-down" size={24} color="#666666" />
-          </View>
         </TouchableOpacity>
 
         {/* Timestamp */}
@@ -788,6 +834,10 @@ const styles = StyleSheet.create({
   italicText: {
     fontStyle: "italic",
     color: "#666666",
+  },
+  bulletLine: {
+    marginBottom: 6,
+    paddingLeft: 4,
   },
   regimenContainer: {
     backgroundColor: "#000000",
