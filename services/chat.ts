@@ -232,6 +232,45 @@ async function processMessageWithLambda(
             conversationId,
             contentLen: inserted?.content?.length,
           });
+          // Además, si la respuesta de la Lambda contiene datos de lugares (mapa),
+          // insertarlos como mensaje separado con message_type = 'map' y payload.
+          try {
+            const payloadRoot = data?.data ?? data;
+            // Buscar posibles arrays de resultados de lugares en ubicaciones comunes
+            const mapResults =
+              payloadRoot?.results ||
+              payloadRoot?.data?.results ||
+              payloadRoot?.structuredContent?.results ||
+              payloadRoot?.data?.structuredContent?.results ||
+              payloadRoot?.places ||
+              payloadRoot?.data?.places ||
+              null;
+
+            if (Array.isArray(mapResults) && mapResults.length > 0) {
+              // Insertar mensaje tipo 'map' con payload
+              const { data: mapInserted, error: mapErr } = await supabase
+                .from("messages")
+                .insert({
+                  conversation_id: conversationId,
+                  author_id: null,
+                  role: "assistant",
+                  content: null,
+                  message_type: "map",
+                  payload: mapResults,
+                  status: "sent",
+                })
+                .select("*")
+                .single();
+
+              if (mapErr) {
+                console.warn('[Chat] Failed to insert map message into Supabase', mapErr.message || mapErr);
+              } else {
+                console.log('[Chat] Map message inserted', { id: mapInserted?.id, count: mapResults.length });
+              }
+            }
+          } catch (mapInsertErr) {
+            console.warn('[Chat] Error while processing map payload from Lambda:', mapInsertErr);
+          }
         }
       }
     } catch (insertErr) {
@@ -419,6 +458,8 @@ export function toUiMessage(m: MessageRow, currentUserId: string) {
     text: m.content ?? "",
     isUser: m.role === "user" && m.author_id === currentUserId,
     timestamp: new Date(m.created_at),
+    messageType: m.message_type ?? null,
+    payload: m.payload ?? null,
   };
 }
 

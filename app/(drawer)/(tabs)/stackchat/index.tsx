@@ -22,6 +22,8 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Linking,
+  Pressable,
 } from "react-native";
 
 interface Message {
@@ -29,6 +31,8 @@ interface Message {
   text: string;
   isUser: boolean;
   timestamp: Date;
+  messageType?: string | null;
+  payload?: any;
 }
 
 export default function ChatScreen() {
@@ -215,14 +219,35 @@ export default function ChatScreen() {
           item.isUser ? styles.userBubble : styles.botBubble,
         ]}
       >
-        <Text
-          style={[
-            styles.messageText,
-            item.isUser ? styles.userText : styles.botText,
-          ]}
-        >
-          {item.text}
-        </Text>
+        {item.messageType === "map" && Array.isArray(item.payload) ? (
+          // Mostrar lista de resultados de mapa con botón para abrir la app o Google Maps
+          <View>
+            {item.payload.map((p: any, idx: number) => (
+              <Pressable
+                key={idx}
+                onPress={() => {
+                  const url = p.deepLink || p.mapsUrl || p.googleMapsUri;
+                  if (url) Linking.openURL(url);
+                }}
+                style={styles.mapCard}
+              >
+                <Text style={styles.mapTitle}>{p.name || p.displayName || 'Lugar'}</Text>
+                {!!p.address && <Text style={styles.mapSubtitle}>{p.address}</Text>}
+                {!!p.phone && <Text style={styles.mapPhone}>Tel: {p.phone}</Text>}
+                <Text style={styles.mapAction}>Abrir en mapa</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <Text
+            style={[
+              styles.messageText,
+              item.isUser ? styles.userText : styles.botText,
+            ]}
+          >
+            {item.text}
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -472,4 +497,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
   },
+  mapCard: {
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    marginVertical: 6,
+    borderWidth: 1,
+    borderColor: '#E6E6E6'
+  },
+  mapTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
+  mapSubtitle: { fontSize: 14, color: '#444', marginTop: 4 },
+  mapPhone: { fontSize: 14, color: '#333', marginTop: 6 },
+  mapAction: { marginTop: 8, color: '#1A73E8', fontWeight: '600' },
 });
