@@ -41,8 +41,6 @@ export default function HomeScreen() {
         router.push('/(drawer)/(tabs)/stackhome/recomendacion');
         break;
       case 'obligaciones':
-      case 'riesgos':
-        router.push('/(drawer)/(tabs)/stackhome/riskExplanation');
         break;
       case 'calendario':
       default:

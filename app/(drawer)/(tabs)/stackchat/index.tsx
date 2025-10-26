@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import TypingDots from "@/components/ui/typing-dots";
 import {
   createNewConversation,
   ensureConversationForUser,
@@ -38,6 +39,7 @@ export default function ChatScreen() {
   const [dbReady, setDbReady] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const unsubRef = useRef<null | (() => void)>(null);
+  const [isTyping, setIsTyping] = useState(false);
 
   // Bootstrap conversation + realtime
   useEffect(() => {
@@ -59,6 +61,10 @@ export default function ChatScreen() {
             const ui = toUiMessage(row, user.id);
             if (type === "DELETE") {
               return prev.filter((m) => m.id !== ui.id);
+            }
+            // Cuando llega un mensaje del asistente, ocultamos el indicador de "Escribiendo…"
+            if (ui && ui.isUser === false && (row as any).role === "assistant") {
+              setIsTyping(false);
             }
             // INSERT or UPDATE -> upsert by id
             const idx = prev.findIndex((m) => m.id === ui.id);
@@ -102,6 +108,7 @@ export default function ChatScreen() {
 
     if (dbReady && conversationId && user?.id) {
       try {
+        setIsTyping(true);
         await sendUserMessage(conversationId, user.id, content);
       } catch (err) {
         console.error("Error enviando mensaje a Supabase:", err);
@@ -123,6 +130,7 @@ export default function ChatScreen() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, localMsg]);
+      setIsTyping(true);
 
       // Simular respuesta del bot en modo local
       setTimeout(() => {
@@ -135,6 +143,7 @@ export default function ChatScreen() {
             timestamp: new Date(),
           },
         ]);
+        setIsTyping(false);
       }, 800);
     }
   };
@@ -269,6 +278,15 @@ export default function ChatScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messagesList}
           showsVerticalScrollIndicator={false}
+          ListFooterComponent={() =>
+            isTyping ? (
+              <View style={[styles.messageContainer, styles.botMessage]}>
+                <View style={[styles.messageBubble, styles.botBubble]}>
+                  <TypingDots color="#333333" />
+                </View>
+              </View>
+            ) : null
+          }
         />
 
         {/* Input Container */}
