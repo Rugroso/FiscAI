@@ -81,19 +81,6 @@ export default function StackHomeLayout() {
                     </TouchableOpacity>
                   )
                 ),
-                headerRight: () => (
-                  <TouchableOpacity 
-                    onPress={triggerReload}
-                    disabled={isReloading}
-                    style={{ marginRight: 10 }}
-                  >
-                    <MaterialCommunityIcons 
-                      name="refresh" 
-                      size={24} 
-                      color={isReloading ? "#CCCCCC" : "#000000"} 
-                    />
-                  </TouchableOpacity>
-                ),
               }}
             />
        <Stack.Screen

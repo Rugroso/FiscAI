@@ -1,5 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
-import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -21,14 +21,21 @@ type CreditOption = {
   title: string;
   description: string;
   source: string;
+  scope?: string;
   relevance: number;
+  category?: string;
+  full_content_available?: boolean;
 };
 
 type TaxDeduction = {
   title: string;
   description: string;
   source: string;
+  scope?: string;
   relevance: number;
+  category?: string;
+  applies_to_regime?: string;
+  full_content_available?: boolean;
 };
 
 type Recommendation = {
@@ -37,23 +44,53 @@ type Recommendation = {
   title: string;
   description: string;
   action: string;
+  estimated_amount?: string;
+  requirements?: string[];
+  interest_rate?: string;
+  categories?: string[];
+  estimated_savings?: string;
+  benefits?: string[];
+  limits?: string;
+  opportunities?: string[];
+};
+
+type FinancialHealthFactor = {
+  factor: string;
+  points: number;
+  status: string;
 };
 
 type FinancialHealth = {
   score: number;
   level: string;
+  color?: string;
+  emoji?: string;
+  factors?: FinancialHealthFactor[];
   monthly_profit: number;
   profit_margin: number;
   annual_income: number;
+  business_category?: string;
+  credit_range?: string;
 };
 
 type Profile = {
   actividad: string;
   monthly_income: number;
   monthly_expenses: number;
+  monthly_profit?: number;
+  profit_margin_pct?: number;
   has_rfc: boolean;
   regime: string;
   employees: number;
+  business_category?: string;
+};
+
+type Summary = {
+  total_credit_options: number;
+  total_deductions: number;
+  total_recommendations: number;
+  high_priority_actions: number;
+  estimated_annual_savings: string;
 };
 
 type ApiResponse = {
@@ -62,6 +99,7 @@ type ApiResponse = {
   tax_deductions: TaxDeduction[];
   recommendations: Recommendation[];
   profile: Profile;
+  summary?: Summary;
 };
 
 export default function FinancialRecommendationsScreen() {
@@ -202,11 +240,40 @@ export default function FinancialRecommendationsScreen() {
             <MaterialCommunityIcons name="finance" size={28} color="#4CAF50" />
             <Text style={styles.cardTitle}>Salud financiera</Text>
           </View>
-          <Text style={styles.overallMessage}>Nivel: <Text style={{fontWeight:'bold'}}>{data?.financial_health.level}</Text></Text>
-          <Text style={styles.overallMessage}>Puntaje: <Text style={{fontWeight:'bold'}}>{data?.financial_health.score}</Text></Text>
+          <View style={styles.scoreContainer}>
+            <View style={styles.scoreInfo}>
+              <Text style={styles.scoreValue}>{data?.financial_health.score}</Text>
+              <Text style={styles.scoreLevel}>{data?.financial_health.level}</Text>
+            </View>
+          </View>
+          
+          {data?.financial_health.factors && data.financial_health.factors.length > 0 && (
+            <View style={styles.factorsContainer}>
+              <Text style={styles.subsectionTitle}>Factores que influyen:</Text>
+              {data.financial_health.factors.map((factor, idx) => (
+                <View key={idx} style={styles.factorItem}>
+                  <MaterialCommunityIcons 
+                    name={factor.status === 'positive' ? 'check-circle' : factor.status === 'negative' ? 'alert-circle' : 'minus-circle'} 
+                    size={20} 
+                    color={factor.status === 'positive' ? '#4CAF50' : factor.status === 'negative' ? '#FF0000' : '#FFA500'} 
+                  />
+                  <Text style={styles.factorText}>{factor.factor} (+{factor.points} pts)</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          
+          <View style={styles.divider} />
+          
           <Text style={styles.overallMessage}>Utilidad mensual: <Text style={{fontWeight:'bold'}}>${data?.financial_health.monthly_profit?.toLocaleString('es-MX')}</Text></Text>
           <Text style={styles.overallMessage}>Margen de ganancia: <Text style={{fontWeight:'bold'}}>{data?.financial_health.profit_margin}%</Text></Text>
           <Text style={styles.overallMessage}>Ingresos anuales: <Text style={{fontWeight:'bold'}}>${data?.financial_health.annual_income?.toLocaleString('es-MX')}</Text></Text>
+          {data?.financial_health.business_category && (
+            <Text style={styles.overallMessage}>Categoría: <Text style={{fontWeight:'bold'}}>{data.financial_health.business_category}</Text></Text>
+          )}
+          {data?.financial_health.credit_range && (
+            <Text style={styles.overallMessage}>Rango de crédito: <Text style={{fontWeight:'bold'}}>{data.financial_health.credit_range}</Text></Text>
+          )}
         </View>
 
         {/* Bloque: Opciones de crédito */}
@@ -216,12 +283,20 @@ export default function FinancialRecommendationsScreen() {
         </View>
         {data?.credit_options.map((option, idx) => (
           <View key={idx} style={styles.card}>
-            <Text style={styles.productName}>{option.title}</Text>
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+              <Text style={[styles.productName, {flex: 1}]}>{option.title}</Text>
+
+            </View>
             <Text style={styles.productDescription}>{option.description}</Text>
-            <TouchableOpacity onPress={() => Linking.openURL(option.source)}>
-              <Text style={{color:'#2196F3',marginTop:8}}>Ver fuente</Text>
-            </TouchableOpacity>
-            <Text style={styles.recommendedForText}>Relevancia: {option.relevance}</Text>
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8}}>
+              <TouchableOpacity onPress={() => Linking.openURL(option.source)}>
+                <Text style={{color:'#2196F3', fontSize: 14}}>📄 Ver documento completo</Text>
+              </TouchableOpacity>
+              <Text style={styles.recommendedForText}>⭐ {option.relevance.toFixed(1)}%</Text>
+            </View>
+            {option.scope && (
+              <Text style={{fontSize: 12, color: '#999', marginTop: 8}}>Sección: {option.scope}</Text>
+            )}
           </View>
         ))}
 
@@ -232,12 +307,26 @@ export default function FinancialRecommendationsScreen() {
         </View>
         {data?.tax_deductions.map((ded, idx) => (
           <View key={idx} style={styles.card}>
-            <Text style={styles.productName}>{ded.title}</Text>
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+              <Text style={[styles.productName, {flex: 1}]}>{ded.title}</Text>
+            </View>
+            {ded.applies_to_regime && (
+              <View style={{backgroundColor: '#FFF9E6', padding: 8, borderRadius: 6, marginVertical: 8}}>
+                <Text style={{fontSize: 12, color: '#FF9800', fontWeight: '600'}}>
+                  ✓ Aplica para régimen: {ded.applies_to_regime}
+                </Text>
+              </View>
+            )}
             <Text style={styles.productDescription}>{ded.description}</Text>
-            <TouchableOpacity onPress={() => Linking.openURL(ded.source)}>
-              <Text style={{color:'#FF9800',marginTop:8}}>Ver fuente</Text>
-            </TouchableOpacity>
-            <Text style={styles.recommendedForText}>Relevancia: {ded.relevance}</Text>
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8}}>
+              <TouchableOpacity onPress={() => Linking.openURL(ded.source)}>
+                <Text style={{color:'#FF9800', fontSize: 14}}>📄 Ver documento completo</Text>
+              </TouchableOpacity>
+              <Text style={styles.recommendedForText}>⭐ {ded.relevance.toFixed(1)}%</Text>
+            </View>
+            {ded.scope && (
+              <Text style={{fontSize: 12, color: '#999', marginTop: 8}}>Sección: {ded.scope}</Text>
+            )}
           </View>
         ))}
 
@@ -249,25 +338,118 @@ export default function FinancialRecommendationsScreen() {
         {data?.recommendations.map((rec, idx) => (
           <View key={idx} style={styles.card}>
             <Text style={styles.productName}>{rec.title}</Text>
+            <View style={styles.priorityBadge}>
+              <Text style={[styles.priorityText, { 
+                color: rec.priority === 'high' ? '#FF0000' : rec.priority === 'medium' ? '#FFA500' : '#666666'
+              }]}>
+                Prioridad: {rec.priority.toUpperCase()}
+              </Text>
+            </View>
             <Text style={styles.productDescription}>{rec.description}</Text>
-            <Text style={styles.recommendedForText}>Prioridad: {rec.priority}</Text>
-            <Text style={styles.recommendedForText}>Acción sugerida: {rec.action}</Text>
+            <View style={styles.actionContainer}>
+              <MaterialCommunityIcons name="lightbulb" size={18} color="#4CAF50" />
+              <Text style={styles.actionText}>{rec.action}</Text>
+            </View>
+            
+            {rec.estimated_amount && (
+              <Text style={styles.recommendedForText}>💰 {rec.estimated_amount}</Text>
+            )}
+            {rec.interest_rate && (
+              <Text style={styles.recommendedForText}>📊 Tasa: {rec.interest_rate}</Text>
+            )}
+            {rec.estimated_savings && (
+              <Text style={[styles.recommendedForText, {color: '#4CAF50', fontWeight: 'bold'}]}>
+                💵 Ahorro estimado: {rec.estimated_savings}
+              </Text>
+            )}
+            {rec.limits && (
+              <Text style={styles.recommendedForText}>⚠️ {rec.limits}</Text>
+            )}
+            
+            {rec.requirements && rec.requirements.length > 0 && (
+              <View style={styles.subsection}>
+                <Text style={styles.subsectionTitle}>Requisitos:</Text>
+                {rec.requirements.map((req, reqIdx) => (
+                  <View key={reqIdx} style={styles.listItem}>
+                    <View style={styles.bulletPoint} />
+                    <Text style={styles.listItemText}>{req}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            
+            {rec.categories && rec.categories.length > 0 && (
+              <View style={styles.subsection}>
+                <Text style={styles.subsectionTitle}>Categorías deducibles:</Text>
+                {rec.categories.map((cat, catIdx) => (
+                  <View key={catIdx} style={styles.listItem}>
+                    <View style={styles.bulletPoint} />
+                    <Text style={styles.listItemText}>{cat}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            
+            {rec.benefits && rec.benefits.length > 0 && (
+              <View style={styles.subsection}>
+                <Text style={styles.subsectionTitle}>Beneficios:</Text>
+                {rec.benefits.map((ben, benIdx) => (
+                  <View key={benIdx} style={styles.listItem}>
+                    <MaterialCommunityIcons name="check-circle" size={16} color="#4CAF50" />
+                    <Text style={[styles.listItemText, {marginLeft: 8}]}>{ben}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            
+            {rec.opportunities && rec.opportunities.length > 0 && (
+              <View style={styles.subsection}>
+                <Text style={styles.subsectionTitle}>Oportunidades de crecimiento:</Text>
+                {rec.opportunities.map((opp, oppIdx) => (
+                  <View key={oppIdx} style={styles.listItem}>
+                    <MaterialCommunityIcons name="arrow-up-circle" size={16} color="#2196F3" />
+                    <Text style={[styles.listItemText, {marginLeft: 8}]}>{opp}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         ))}
 
-        {/* Bloque: Perfil */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="account-circle" size={24} color="#000000" />
-            <Text style={styles.cardTitle}>Perfil</Text>
+        {/* Bloque: Resumen */}
+        {data?.summary && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <MaterialCommunityIcons name="chart-box" size={24} color="#2196F3" />
+              <Text style={styles.cardTitle}>Resumen</Text>
+            </View>
+            <View style={styles.summaryGrid}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryNumber}>{data.summary.total_credit_options}</Text>
+                <Text style={styles.summaryLabel}>Opciones de crédito</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryNumber}>{data.summary.total_deductions}</Text>
+                <Text style={styles.summaryLabel}>Deducciones</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryNumber}>{data.summary.total_recommendations}</Text>
+                <Text style={styles.summaryLabel}>Recomendaciones</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryNumber}>{data.summary.high_priority_actions}</Text>
+                <Text style={styles.summaryLabel}>Acciones prioritarias</Text>
+              </View>
+            </View>
+            <View style={styles.savingsHighlight}>
+              <MaterialCommunityIcons name="piggy-bank" size={32} color="#4CAF50" />
+              <View style={{marginLeft: 12}}>
+                <Text style={styles.savingsLabel}>Ahorro anual estimado</Text>
+                <Text style={styles.savingsValue}>{data.summary.estimated_annual_savings}</Text>
+              </View>
+            </View>
           </View>
-          <Text style={styles.overallMessage}>Actividad: <Text style={{fontWeight:'bold'}}>{data?.profile.actividad}</Text></Text>
-          <Text style={styles.overallMessage}>Ingresos mensuales: <Text style={{fontWeight:'bold'}}>${data?.profile.monthly_income?.toLocaleString('es-MX')}</Text></Text>
-          <Text style={styles.overallMessage}>Gastos mensuales: <Text style={{fontWeight:'bold'}}>${data?.profile.monthly_expenses?.toLocaleString('es-MX')}</Text></Text>
-          <Text style={styles.overallMessage}>RFC: <Text style={{fontWeight:'bold'}}>{data?.profile.has_rfc ? 'Sí' : 'No'}</Text></Text>
-          <Text style={styles.overallMessage}>Régimen: <Text style={{fontWeight:'bold'}}>{data?.profile.regime}</Text></Text>
-          <Text style={styles.overallMessage}>Empleados: <Text style={{fontWeight:'bold'}}>{data?.profile.employees}</Text></Text>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -557,5 +739,129 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#999999",
     marginLeft: 6,
+  },
+  // Nuevos estilos para health score
+  scoreContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+    padding: 20,
+    backgroundColor: "#F0F8FF",
+    borderRadius: 12,
+  },
+  scoreEmoji: {
+    fontSize: 48,
+    marginRight: 16,
+  },
+  scoreInfo: {
+    alignItems: "center",
+  },
+  scoreValue: {
+    fontSize: 42,
+    fontWeight: "bold",
+    color: "#4CAF50",
+  },
+  scoreLevel: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333333",
+    marginTop: 4,
+  },
+  factorsContainer: {
+    marginTop: 16,
+  },
+  factorItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#F9F9F9",
+    borderRadius: 8,
+  },
+  factorText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#333333",
+    marginLeft: 10,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#E0E0E0",
+    marginVertical: 16,
+  },
+  // Estilos para recomendaciones mejoradas
+  priorityBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#FFF9E6",
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  priorityText: {
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  actionContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0F8FF",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  actionText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#333333",
+    marginLeft: 8,
+    fontWeight: "500",
+  },
+  // Estilos para el summary
+  summaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 16,
+  },
+  summaryItem: {
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: "#F9F9F9",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  summaryNumber: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#2196F3",
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: "#666666",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  savingsHighlight: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E8F5E9",
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  savingsLabel: {
+    fontSize: 14,
+    color: "#666666",
+  },
+  savingsValue: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#4CAF50",
+    marginTop: 4,
   },
 });
