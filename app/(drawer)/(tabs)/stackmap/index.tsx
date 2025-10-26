@@ -4,7 +4,7 @@ import { FontAwesome5, MaterialCommunityIcons, MaterialIcons } from "@expo/vecto
 import * as Haptics from "expo-haptics"
 import * as Location from "expo-location"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import React, { useEffect, useRef, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Animated,
@@ -64,6 +64,8 @@ export default function BankMap() {
   const params = useLocalSearchParams()
   const defColor = "#000000"
   const placeIdParam = (params.placeIdParam as string) || "i"
+  const typeParam = (params.type as "bank" | "sat") || undefined
+  const searchQueryParam = (params.searchQuery as string) || undefined
 
   const handleModalToggle = () => {
     setModalVisible(!modalVisible)
@@ -110,12 +112,21 @@ export default function BankMap() {
     })()
   }, [])
 
-  const fetchPlaces = async () => {
+  const fetchPlaces = useCallback(async () => {
     if (!userLocation) return
 
     try {
       setLoading(true)
-      const keyword = searchType === "bank" ? "Banorte" : "centro tributario SAT"
+      
+      // Si viene una búsqueda específica del chatbot, usarla
+      let keyword = searchType === "bank" ? "Banorte" : "centro tributario SAT";
+      if (searchQueryParam && searchQueryParam.trim() !== '') {
+        keyword = `${keyword} ${searchQueryParam}`;
+        console.log('[Map] Using search query from chat:', keyword);
+      }
+      
+      console.log('[Map] Fetching places with keyword:', keyword);
+      
       // Usar Text Search en lugar de Nearby Search para mejores resultados
       const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(keyword)}&location=${userLocation.latitude},${userLocation.longitude}&radius=5000&key=${GOOGLE_MAPS_API_KEY}`
 
@@ -146,9 +157,11 @@ export default function BankMap() {
 
         setPlaces(shuffleArray(placesData))
 
+        // Si viene un placeId específico del chat, seleccionarlo
         if (placeIdParam && placeIdParam !== "i") {
           const selectedP = placesData.find((p) => p.placeId === placeIdParam)
           if (selectedP) {
+            console.log('[Map] Selecting specific place from chat:', selectedP.name);
             setSelectedPlace(selectedP)
             setTimeout(() => {
               mapRef.current?.animateToRegion(
@@ -162,6 +175,34 @@ export default function BankMap() {
               )
             }, 500)
           }
+        } 
+        // Si NO hay placeId pero viene del chatbot (typeParam existe), seleccionar el más cercano
+        else if (typeParam && placesData.length > 0) {
+          // Calcular distancia y seleccionar el más cercano
+          const placesWithDistance = placesData.map(place => {
+            const distance = Math.sqrt(
+              Math.pow(place.latitude - userLocation.latitude, 2) + 
+              Math.pow(place.longitude - userLocation.longitude, 2)
+            );
+            return { ...place, distance };
+          });
+          
+          const closest = placesWithDistance.sort((a, b) => a.distance - b.distance)[0];
+          console.log('[Map] Auto-selecting closest place from chat:', closest.name);
+          setSelectedPlace(closest);
+          
+          // Animar hacia el lugar seleccionado
+          setTimeout(() => {
+            mapRef.current?.animateToRegion(
+              {
+                latitude: closest.latitude,
+                longitude: closest.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              },
+              1000,
+            );
+          }, 500);
         }
       } else {
         console.error("Error en la respuesta de Google Places:", data.status)
@@ -173,13 +214,46 @@ export default function BankMap() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [userLocation, searchType, searchQueryParam, placeIdParam])
 
+  // Cargar lugares cuando cambie la ubicación o el tipo de búsqueda
   useEffect(() => {
     if (userLocation) {
-      fetchPlaces()
+      console.log('[Map] Fetching places for type:', searchType);
+      fetchPlaces();
     }
-  }, [userLocation, searchType])
+  }, [userLocation, searchType, fetchPlaces]);
+
+  // Manejar parámetros del chatbot (deep link)
+  useEffect(() => {
+    // Si viene un tipo desde el chatbot, usarlo
+    if (typeParam && (typeParam === 'bank' || typeParam === 'sat')) {
+      console.log('[Map] Setting search type from chat:', typeParam);
+      setSearchType(typeParam);
+    }
+  }, [typeParam]);
+
+  useEffect(() => {
+    // Si viene un placeId específico, enfocarlo después de cargar los lugares
+    if (placeIdParam && placeIdParam !== "i" && places.length > 0) {
+      console.log('[Map] Focusing place from chat:', placeIdParam);
+      const selectedP = places.find((p) => p.placeId === placeIdParam);
+      if (selectedP) {
+        setSelectedPlace(selectedP);
+        setTimeout(() => {
+          mapRef.current?.animateToRegion(
+            {
+              latitude: selectedP.latitude,
+              longitude: selectedP.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            },
+            1000,
+          );
+        }, 500);
+      }
+    }
+  }, [placeIdParam, places]);
 
   const handleMarkerPress = (place: Place) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
