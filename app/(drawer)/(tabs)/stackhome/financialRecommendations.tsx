@@ -13,6 +13,7 @@ import {
     TouchableOpacity,
     View
 } from "react-native";
+import { supabase } from "@/supabase";
 import { useReload } from "./_layout";
 import { url, ENDPOINTS } from "@/api";
 
@@ -114,27 +115,42 @@ export default function FinancialRecommendationsScreen() {
     try {
       setLoading(true);
       setError(null);
-      const profileData = {
-        actividad: "Restaurante",
-        monthly_income: 80000,
-        monthly_expenses: 50000,
-        has_rfc: true,
-        regime: "RESICO",
-        employees: 5,
+      if (!user?.id) {
+        setError("Debes iniciar sesión para ver recomendaciones.");
+        setLoading(false);
+        return;
+      }
+
+      // Obtener datos del negocio del usuario
+      const { data: business, error: businessError } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (businessError || !business) {
+        setError("No se encontraron datos de tu negocio. Completa el cuestionario primero.");
+        setLoading(false);
+        return;
+      }
+
+      // Construir el payload con los datos reales
+      const payload = {
+        actividad: business.actividad,
+        ingresos_mensuales: business.monthly_income,
+        gastos_mensuales: business.monthly_expenses,
+        tiene_rfc: business.has_rfc,
+        regimen_fiscal: business.regimen || business.regime || "",
+        num_empleados: business.employees,
+        // Puedes agregar más campos si tu API los soporta
       };
-        const response = await fetch(url(ENDPOINTS.financial), {
+
+      const response = await fetch(url(ENDPOINTS.financial), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-          body: JSON.stringify({
-            actividad: "Restaurante",
-            ingresos_mensuales: 80000,
-            gastos_mensuales: 50000,
-            tiene_rfc: true,
-            regimen_fiscal: "RESICO",
-            num_empleados: 5,
-          }),
+        body: JSON.stringify(payload),
       });
       if (!response.ok) {
         throw new Error("No se pudo obtener la recomendación financiera");
