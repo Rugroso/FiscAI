@@ -88,6 +88,8 @@ export default function InformalScreen() {
         },
       };
 
+      console.log('🚀 Enviando petición...');
+
       const response = await fetch(
         "https://d8pgui6dhb.execute-api.us-east-2.amazonaws.com/recommendation",
         {
@@ -99,18 +101,54 @@ export default function InformalScreen() {
         }
       );
 
+      console.log('📡 Status:', response.status);
+
       if (!response.ok) {
         throw new Error("Error al obtener la recomendación");
       }
 
-      const result: ApiResponse = await response.json();
-      setData(result);
-      // Al obtener recomendación, marcamos Perfil y Régimen como completados
-      markDone('perfil');
-      markDone('regimen');
-      setActive('obligaciones');
+      const result = await response.json();
+      console.log('📦 Respuesta raw:', result);
+
+      // Parsear el campo recommendation que viene como string JSON
+      let recommendationText = result.recommendation;
+      let sources = result.sources || [];
+      let matchesCount = result.matches_count || 0;
+
+      // Si recommendation es un string JSON, parsearlo
+      if (typeof recommendationText === 'string' && recommendationText.startsWith('{')) {
+        try {
+          const parsedRecommendation = JSON.parse(recommendationText);
+          console.log('✅ Recommendation parseado:', parsedRecommendation);
+          
+          // Extraer los datos correctos
+          if (parsedRecommendation.success && parsedRecommendation.data) {
+            recommendationText = parsedRecommendation.data.recommendation || recommendationText;
+            sources = parsedRecommendation.data.sources || sources;
+            matchesCount = parsedRecommendation.data.matches_count || matchesCount;
+          } else if (parsedRecommendation.recommendation) {
+            recommendationText = parsedRecommendation.recommendation;
+          }
+        } catch (e) {
+          console.warn('⚠️ No se pudo parsear recommendation, usando como está');
+        }
+      }
+
+      // Construir el objeto final con el formato esperado
+      const transformedData: ApiResponse = {
+        success: result.success,
+        profile: result.profile,
+        risk: result.risk,
+        recommendation: recommendationText,
+        sources: sources,
+        matches_count: matchesCount,
+        timestamp: result.timestamp,
+      };
+
+      console.log('✅ Datos transformados:', transformedData);
+      setData(transformedData);
     } catch (err) {
-      console.error("Error:", err);
+      console.error("❌ Error:", err);
       setError(err instanceof Error ? err.message : "Error desconocido");
       Alert.alert("Error", "No se pudo obtener la recomendación fiscal");
     } finally {
