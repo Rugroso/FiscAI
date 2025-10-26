@@ -8,19 +8,19 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 
@@ -489,10 +489,10 @@ const styles = StyleSheet.create({
     borderColor: "#CCCCCC",
   },
   inputError: {
-    borderColor: "#FF0000",
+    borderColor: "#E80000",
   },
   errorText: {
-    color: "#FF0000",
+    color: "#E80000",
     fontSize: 12,
     marginTop: 4,
   },

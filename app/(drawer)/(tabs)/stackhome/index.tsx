@@ -21,11 +21,14 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const score = 67;
 
-  const cardData = [
-  { id: '1', title1: 'Beneficios', title2: 'Créditos' },
-  { id: '2', title1: 'Requisitos', title2: 'Procedimiento' },
-  { id: '3', title1: 'Contacto', title2: 'Soporte' },
-  { id: '4', title1: 'Duración', title2: 'Plazos' },
+const cardData = [
+  { id: '1', title1: 'Haz crecer tu negocio', title2: 'Formalízate hoy' },
+  { id: '2', title1: 'Accede a créditos', title2: 'con tasas preferenciales' },
+  { id: '3', title1: 'Evita multas', title2: 'con asesoría automática' },
+  { id: '4', title1: 'Cobra con factura', title2: 'y vende a empresas grandes' },
+  { id: '5', title1: 'Apóyate en IA', title2: 'para tomar mejores decisiones' },
+  { id: '6', title1: 'Mejora tu salud financiera', title2: 'en minutos' },
+  { id: '7', title1: 'Formalízate con FinForm', title2: 'y accede a beneficios reales' },
 ];
 
   return (
@@ -37,7 +40,7 @@ export default function HomeScreen() {
             Bienvenido <Text style={styles.businessName}>{user?.name || "Usuario"}</Text>
           </Text>
           <Text style={styles.businessStatus}>
-            Negocio <Text style={styles.informal}>Informal</Text>
+            Negocio <Text style={styles.rojo}>Informal</Text>
           </Text>
           <View style={styles.cardFooter}>
             <Text style={styles.cardFooterText}>
@@ -71,10 +74,11 @@ export default function HomeScreen() {
           </TouchableOpacity>
           </Pressable>
         </View>
-        <View style={styles.card}>
+        <View style={styles.cardben}>
           <Pressable
             onPress={() => router.push("/(drawer)/(tabs)/stackhome/beneficios")}
           >
+            <Text style={styles.beneficios}>Beneficios de nuestra <Text style={styles.rojo}>app</Text></Text>
           <CarouselCard data={cardData} interval={2500} />
           </Pressable>
         </View>
@@ -97,7 +101,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
   },
+  beneficios :{
+    fontSize: 16,
+    fontWeight: "bold",
+  },
   card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardben: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
@@ -123,8 +142,8 @@ const styles = StyleSheet.create({
     color: "#000000",
     marginBottom: 12,
   },
-  informal: {
-    color: "#FF0000",
+  rojo: {
+    color: "#E80000",
   },
   cardFooter: {
     flexDirection: "row",
