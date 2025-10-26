@@ -8,19 +8,19 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 
@@ -136,6 +136,9 @@ export default function RegisterScreen() {
         location,
         profilePicture
       );
+
+      router.push("/cuestionario");
+
     } catch (error) {
       console.error("Error en registro:", error);
       Alert.alert("Error", "Hubo un problema al registrar tu cuenta");
@@ -526,7 +529,7 @@ const styles = StyleSheet.create({
     color: "#000000",
   },
   loginLink: {
-    color: "#000000",
+    color: "#E80000",
     fontWeight: "bold",
     textDecorationLine: "underline",
   },
