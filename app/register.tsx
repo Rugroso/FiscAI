@@ -473,10 +473,10 @@ const styles = StyleSheet.create({
     borderColor: "#CCCCCC",
   },
   inputError: {
-    borderColor: "#FF0000",
+    borderColor: "#E80000",
   },
   errorText: {
-    color: "#FF0000",
+    color: "#E80000",
     fontSize: 12,
     marginTop: 4,
   },

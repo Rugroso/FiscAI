@@ -40,7 +40,7 @@ export default function CarouselCard({ data, interval = 3000 }: CarouselCardProp
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.title}>{item.title1}</Text>
-            <Text style={styles.title}>{item.title2}</Text>
+            <Text style={styles.subtitle}>{item.title2}</Text>
           </View>
         )}
       />
@@ -79,11 +79,18 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginVertical: 2,
-  },
+title: {
+  fontSize: 20,
+  fontWeight: '800',
+  marginVertical: 2,
+  color: '#E80000',
+  textTransform: 'uppercase',
+},
+subtitle: {
+  fontSize: 16,
+  fontWeight: '500',
+  color: '#333',
+},
   pagination: {
     flexDirection: 'row',
     marginTop: 8,

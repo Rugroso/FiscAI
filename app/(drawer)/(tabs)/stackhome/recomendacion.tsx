@@ -469,15 +469,11 @@ export default function InformalScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <MaterialIcons name="arrow-back" size={24} color="#000000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Recomendación Fiscal</Text>
+      {/* <View style={styles.header}>
         <TouchableOpacity onPress={fetchRecommendation}>
           <MaterialCommunityIcons name="refresh" size={24} color="#000000" />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Régimen Fiscal Destacado - PRIMERO */}

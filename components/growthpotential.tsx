@@ -15,7 +15,7 @@ export const GrowthPotential: React.FC<GrowthPotentialProps> = ({
   strokeWidth = 12,
   showAnnualLabel = true,
 }) => {
-  const radius = (size - strokeWidth) / 2.5;
+  const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   
   // Normalizar el multiplicador a un rango de 0-100 para el círculo
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   multiplierText: {
-    fontSize: 42,
+    fontSize: 32,
     fontWeight: "bold",
     color: "#1F2937",
   },
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   annualText: {
-    fontSize: 12,
+    fontSize: 10,
     color: "#10B981",
     fontWeight: "700",
   },
