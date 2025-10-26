@@ -36,32 +36,52 @@ export default function HomeScreen() {
   const [nombreNegocio, setNombreNegocio] = useState("");
   const [loading, setLoading] = useState(true);
   const { state, setActive } = useProgress();
-  const growthMultiplier = 1.4; // Multiplicador de crecimiento anual (ejemplo: x1.4 = 40% de crecimiento)
   const [progress, setProgress] = useState<RoadmapData | null>(null);
 
-useFocusEffect(
-  useCallback(() => {
-    async function loadRoadmapCache() {
-      try {
-        if (!user?.id) return;
-        const cachedData = await AsyncStorage.getItem(`roadmap_${user.id}`);
-        if (cachedData) {
-          const parsed = JSON.parse(cachedData);
-          setProgress({
-            progressTitle: parsed.progressTitle,
-            completedSteps: parsed.completedSteps,
-            totalSteps: parsed.totalSteps,
-            progressPercent: parsed.progressPercent,
-          });
-        }
-      } catch (err) {
-        console.error("Error loading roadmap cache:", err);
-      }
-    }
+  useFocusEffect(
+    useCallback(() => {
+      async function loadRoadmapProgress() {
+        try {
+          if (!user?.id) return;
+          
+          // Leer progreso directamente de la base de datos
+          const { data: businessData, error } = await supabase
+            .from('businesses')
+            .select('id, roadmap_progress')
+            .eq('user_id', user.id)
+            .single();
 
-    loadRoadmapCache();
-  }, [user?.id])
-);
+          if (error) {
+            console.error("Error loading roadmap progress:", error);
+            return;
+          }
+
+          if (businessData) {
+            // Obtener también el total de pasos para mostrar "X de Y completados"
+            const { data: stepsData } = await supabase
+              .from('business_roadmap')
+              .select('status')
+              .eq('business_id', businessData.id);
+
+            const totalSteps = stepsData?.length || 0;
+            const completedSteps = stepsData?.filter(s => s.status === 'done').length || 0;
+            const progressPercent = businessData.roadmap_progress || 0;
+
+            setProgress({
+              progressTitle: "Tu Progreso Fiscal",
+              completedSteps,
+              totalSteps,
+              progressPercent,
+            });
+          }
+        } catch (err) {
+          console.error("Error loading roadmap progress:", err);
+        }
+      }
+
+      loadRoadmapProgress();
+    }, [user?.id])
+  );
 
   useEffect(() => {
     async function fetchBusinessName() {

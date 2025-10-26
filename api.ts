@@ -29,6 +29,7 @@ export const ENDPOINTS = {
   riskAssessment: "/risk-assessment",
   openMap: "/open-map",
   recommendation: "/recommendation",
+  financial : "/financial",
 } as const;
 
 export function url(path: string) {

@@ -24,6 +24,18 @@ interface RoadmapStep {
   status: 'active' | 'locked' | 'completed';
 }
 
+interface DBRoadmapStep {
+  id: string;
+  business_id: string;
+  step_key: string;
+  step_title: string;
+  step_subtitle: string | null;
+  status: 'new' | 'in_progress' | 'done';
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface RoadmapGoal {
   title: string;
   subtitle: string;
@@ -71,6 +83,7 @@ export default function FullRoadmapScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isFromCache, setIsFromCache] = useState(false);
+  const [businessId, setBusinessId] = useState<string | null>(null);
 
   useEffect(() => {
     loadRoadmap();
@@ -139,7 +152,26 @@ export default function FullRoadmapScreen() {
         // Usar datos en cache
         console.log('📦 Cargando roadmap desde cache');
         const parsedData = JSON.parse(cachedData);
-        setRoadmapData(parsedData);
+        
+        // Sincronizar con DB incluso si viene de cache
+        const syncedSteps = await syncStepsWithDB(parsedData.steps, businessData.id);
+        
+        const totalSteps = syncedSteps.length;
+        const completedSteps = syncedSteps.filter(s => s.status === 'completed').length;
+        const progressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+        const currentIndex = syncedSteps.findIndex(s => s.status === 'active');
+        
+        const syncedData = {
+          ...parsedData,
+          steps: syncedSteps,
+          totalSteps,
+          completedSteps,
+          progressPercent,
+          currentIndex: currentIndex >= 0 ? currentIndex : completedSteps
+        };
+        
+        setRoadmapData(syncedData);
+        setBusinessId(businessData.id);
         setIsFromCache(true);
         setLoading(false);
       } else {
@@ -161,6 +193,169 @@ export default function FullRoadmapScreen() {
     setIsRefreshing(true);
     await fetchRoadmap();
     setIsRefreshing(false);
+  };
+
+  const syncStepsWithDB = async (steps: RoadmapStep[], businessId: string) => {
+    try {
+      console.log('🔄 Sincronizando pasos con la base de datos...');
+      
+      // Obtener pasos existentes de la DB
+      const { data: existingSteps, error: fetchError } = await supabase
+        .from('business_roadmap')
+        .select('*')
+        .eq('business_id', businessId);
+
+      if (fetchError) {
+        console.error('❌ Error obteniendo pasos existentes:', fetchError);
+        return steps; // Retornar steps originales si hay error
+      }
+
+      const existingStepsMap = new Map(
+        (existingSteps || []).map(step => [step.step_key, step])
+      );
+
+      const updatedSteps: RoadmapStep[] = [];
+      let shouldUnlockNext = false;
+      let foundIncomplete = false;
+
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        const existingStep = existingStepsMap.get(step.key);
+
+        if (existingStep) {
+          const dbStatus = existingStep.status;
+          let apiStatus: 'active' | 'locked' | 'completed' = step.status;
+
+          if (dbStatus === 'done') {
+            apiStatus = 'completed';
+            shouldUnlockNext = true; // El siguiente paso debe desbloquearse
+          } else if (dbStatus === 'in_progress') {
+            apiStatus = 'active';
+            foundIncomplete = true;
+          } else if (dbStatus === 'new') {
+            // Si es el primer paso incompleto y el anterior está done, activarlo
+            if (shouldUnlockNext && !foundIncomplete) {
+              apiStatus = 'active';
+              foundIncomplete = true;
+            } else if (i === 0) {
+              // El primer paso siempre está activo si es new
+              apiStatus = 'active';
+              foundIncomplete = true;
+            } else {
+              apiStatus = 'locked';
+            }
+          }
+
+          updatedSteps.push({
+            ...step,
+            status: apiStatus
+          });
+
+          // Actualizar título/subtítulo si cambiaron
+          if (existingStep.step_title !== step.title || existingStep.step_subtitle !== step.subtitle) {
+            await supabase
+              .from('business_roadmap')
+              .update({
+                step_title: step.title,
+                step_subtitle: step.subtitle
+              })
+              .eq('id', existingStep.id);
+          }
+        } else {
+          // Paso no existe en DB, crear nuevo registro
+          const initialStatus = i === 0 ? 'new' : 'new'; // Primer paso empieza como 'new' pero será 'active'
+          
+          const { error: insertError } = await supabase
+            .from('business_roadmap')
+            .insert({
+              business_id: businessId,
+              step_key: step.key,
+              step_title: step.title,
+              step_subtitle: step.subtitle,
+              status: initialStatus
+            });
+
+          if (insertError) {
+            console.error('❌ Error insertando paso:', insertError);
+          }
+
+          // El primer paso siempre está activo
+          if (i === 0 && !foundIncomplete) {
+            updatedSteps.push({
+              ...step,
+              status: 'active'
+            });
+            foundIncomplete = true;
+          } else {
+            updatedSteps.push({
+              ...step,
+              status: 'locked'
+            });
+          }
+        }
+
+        // Reset flag después de desbloquear el siguiente
+        if (shouldUnlockNext && foundIncomplete) {
+          shouldUnlockNext = false;
+        }
+      }
+
+      console.log('✅ Pasos sincronizados con la base de datos');
+      return updatedSteps;
+    } catch (err) {
+      console.error('❌ Error en syncStepsWithDB:', err);
+      return steps; // Retornar steps originales si hay error
+    }
+  };
+
+  // Actualizar el status de un paso en la DB
+  const updateStepStatus = async (stepKey: string, newStatus: 'new' | 'in_progress' | 'done') => {
+    if (!businessId) {
+      console.error('❌ No hay businessId disponible');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('business_roadmap')
+        .update({ status: newStatus })
+        .eq('business_id', businessId)
+        .eq('step_key', stepKey);
+
+      if (error) {
+        console.error('❌ Error actualizando status del paso:', error);
+        Alert.alert('Error', 'No se pudo actualizar el estado del paso');
+        return;
+      }
+
+      console.log(`✅ Status del paso ${stepKey} actualizado a ${newStatus}`);
+
+      // Recargar roadmap para reflejar cambios
+      await loadRoadmap();
+    } catch (err) {
+      console.error('❌ Error en updateStepStatus:', err);
+      Alert.alert('Error', 'No se pudo actualizar el estado del paso');
+    }
+  };
+
+  // Función para que el usuario marque un paso como completado
+  const handleMarkStepAsDone = async (stepKey: string) => {
+    Alert.alert(
+      'Completar Paso',
+      '¿Marcar este paso como completado?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Completar',
+          onPress: () => updateStepStatus(stepKey, 'done')
+        }
+      ]
+    );
+  };
+
+  // Función para que el usuario marque un paso como en progreso
+  const handleMarkStepInProgress = async (stepKey: string) => {
+    await updateStepStatus(stepKey, 'in_progress');
   };
 
   const fetchRoadmap = async (existingBusinessData?: BusinessData, existingHash?: string) => {
@@ -229,13 +424,33 @@ export default function FullRoadmapScreen() {
 
       const result: RoadmapData = await response.json();
 
-      setRoadmapData(result);
+      // Sincronizar pasos con la base de datos
+      const syncedSteps = await syncStepsWithDB(result.steps, businessData.id);
+      
+      // Recalcular progreso basado en los pasos sincronizados
+      const totalSteps = syncedSteps.length;
+      const completedSteps = syncedSteps.filter(s => s.status === 'completed').length;
+      const progressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+      const currentIndex = syncedSteps.findIndex(s => s.status === 'active');
+      
+      // Actualizar resultado con los pasos sincronizados y progreso recalculado
+      const syncedResult = {
+        ...result,
+        steps: syncedSteps,
+        totalSteps,
+        completedSteps,
+        progressPercent,
+        currentIndex: currentIndex >= 0 ? currentIndex : completedSteps
+      };
+
+      setRoadmapData(syncedResult);
+      setBusinessId(businessData.id);
       console.log('✅ Roadmap procesado y estado actualizado');
-      console.log(result);
+      console.log('📊 Progreso:', { completedSteps, totalSteps, progressPercent });
 
       // Guardar en cache con el hash
       try {
-        await AsyncStorage.setItem(`roadmap_${user.id}`, JSON.stringify(result));
+        await AsyncStorage.setItem(`roadmap_${user.id}`, JSON.stringify(syncedResult));
         if (currentHash) {
           await AsyncStorage.setItem(`roadmap_hash_${user.id}`, currentHash);
         }
@@ -422,21 +637,40 @@ export default function FullRoadmapScreen() {
                   {step.subtitle}
                 </Text>
                 
-                {/* Botón de acción solo para pasos activos */}
+                {/* Botones de acción */}
                 {step.status === 'active' && (
+                  <View style={styles.actionButtonsContainer}>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.startButton]}
+                      onPress={() => {
+                        // Solo marcar como en progreso, no navegar
+                        handleMarkStepInProgress(step.key);
+                      }}
+                    >
+                      <Text style={styles.actionButtonText}>Iniciar paso</Text>
+                      <MaterialCommunityIcons name="play" size={16} color="#FFF" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.completeButton]}
+                      onPress={() => handleMarkStepAsDone(step.key)}
+                    >
+                      <MaterialCommunityIcons name="check" size={16} color="#FFF" />
+                      <Text style={styles.actionButtonText}>Completar</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Mostrar botón de desmarcar para pasos completados */}
+                {step.status === 'completed' && (
                   <TouchableOpacity 
-                    style={styles.actionButton}
-                    onPress={() => {
-                      // Navegar según el tipo de paso
-                      if (step.key === 'rfc' || step.key === 'regimen') {
-                        router.push('/(drawer)/(tabs)/stackhome/recomendacion');
-                      } else if (step.key === 'cfdi' || step.key === 'declaraciones') {
-                        router.push('/(drawer)/(tabs)/stackhome/beneficios');
-                      }
-                    }}
+                    style={[styles.actionButton, styles.undoButton]}
+                    onPress={() => updateStepStatus(step.key, 'in_progress')}
                   >
-                    <Text style={styles.actionButtonText}>Iniciar paso</Text>
-                    <MaterialCommunityIcons name="arrow-right" size={16} color="#FFF" />
+                    <MaterialCommunityIcons name="undo" size={16} color="#666" />
+                    <Text style={[styles.actionButtonText, { color: '#666' }]}>
+                      Desmarcar como completado
+                    </Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -717,14 +951,28 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
+  actionButtonsContainer: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
   actionButton: {
-    backgroundColor: "#E80000",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
+    flex: 1,
+  },
+  startButton: {
+    backgroundColor: "#E80000",
+  },
+  completeButton: {
+    backgroundColor: "#10B981",
+  },
+  undoButton: {
+    backgroundColor: "#F3F4F6",
     marginTop: 8,
   },
   actionButtonText: {

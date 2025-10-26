@@ -14,7 +14,7 @@ import {
     View
 } from "react-native";
 import { useReload } from "./_layout";
-import { url, ENDPOINTS } from "@/config/api";
+import { url, ENDPOINTS } from "@/api";
 
 
 type CreditOption = {
