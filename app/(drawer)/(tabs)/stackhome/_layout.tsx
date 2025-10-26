@@ -1,11 +1,11 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { DrawerActions, useNavigation } from "@react-navigation/native";
+import { DrawerActions } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
-import { Stack } from "expo-router";
+import { Stack, useNavigation } from "expo-router";
 import React from "react";
 import { Platform, Text, TouchableOpacity, View } from "react-native";
 
-export default function stackmap() {
+export default function StackHomeLayout() {
     const navigation = useNavigation();
 
     const openDrawer = () => {
@@ -43,7 +43,30 @@ export default function stackmap() {
                   ),
               }}
             />
-       <Stack.Screen name="informal" options={{ headerShown: false }} />
+       <Stack.Screen
+              name="riskExplanation"
+              options={{
+                headerTitle: () => (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Text style={{ fontSize: 24, fontWeight: "bold", color: "#000000" }}>Fisc</Text>
+                    <Text style={{ fontSize: 24, fontWeight: "bold", color: "#FF0000" }}>AI</Text>
+                  </View>
+                ),
+              }}
+            />
+       <Stack.Screen
+              name="roadmap"
+              options={{
+                headerTitle: () => (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Text style={{ fontSize: 24, fontWeight: "bold", color: "#000000" }}>Fisc</Text>
+                    <Text style={{ fontSize: 24, fontWeight: "bold", color: "#FF0000" }}>AI</Text>
+                  </View>
+                ),
+                headerTitleAlign: 'center'
+              }}
+            />
+       <Stack.Screen name="doctor" options={{ headerTitle: "Detalle" }} />
     </Stack>
   );
 }

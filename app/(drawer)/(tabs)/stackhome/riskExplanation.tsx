@@ -1,52 +1,29 @@
 import { RiskMeter } from "@/components/riskmeter";
-import Roadmap, { RoadmapStep } from "@/components/roadmap";
-import GoogleCalendar from "@/components/ui/calendar";
-import { useProgress } from "@/context/ProgressContext";
-
 import { useAuth } from "@/context/AuthContext";
+import { useProgress } from "@/context/ProgressContext";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import {
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
-export default function HomeScreen() {
+export default function riskExplain() {
   const router = useRouter();
   const { user } = useAuth();
-  const { state, setActive } = useProgress();
-  const score = 67;
-  const roadmapSteps: RoadmapStep[] = [
-    { key: 'perfil', title: 'Perfil fiscal', subtitle: 'Cuéntanos de tu empresa', status: state.perfil },
-    { key: 'regimen', title: 'Régimen óptimo', subtitle: 'Recomendación', status: state.regimen },
-    { key: 'obligaciones', title: 'Obligaciones', subtitle: 'Configura y cumple', status: state.obligaciones },
-    { key: 'calendario', title: 'Calendario SAT', subtitle: 'Fechas clave', status: state.calendario },
-    { key: 'riesgos', title: 'Riesgo fiscal', subtitle: 'Mitiga y mejora', status: state.riesgos },
-  ];
+  const score = 100;
+  const { markDone, setActive } = useProgress();
 
-  const onRoadmapPress = (key: string) => {
-    setActive(key as any);
-    switch (key) {
-      case 'perfil':
-      case 'regimen':
-        router.push('/(drawer)/(tabs)/stackhome/informal');
-        break;
-      case 'obligaciones':
-      case 'riesgos':
-        router.push('/(drawer)/(tabs)/stackhome/riskExplanation');
-        break;
-      case 'calendario':
-      default:
-        // Por ahora mantenemos en Home; el calendario se muestra abajo.
-        break;
-    }
-  };
+  useEffect(() => {
+    // Al visitar esta pantalla, marcamos riesgos como completado y activamos meta
+    markDone('riesgos');
+    setActive('meta');
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -63,31 +40,14 @@ export default function HomeScreen() {
             <Text style={styles.cardFooterText}>
               Presiona para guiarte{"\n"}en el proceso de formalizar
             </Text>
-            <TouchableOpacity style={styles.cardButton} onPress={() => router.push('/(drawer)/(tabs)/stackhome/informal')}>
-              
+            <TouchableOpacity style={styles.cardButton}>
               <Feather name="external-link" size={20} color="#FF0000" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Tarjeta de Roadmap (resumen) */}
-        <View style={styles.card}>
-          <Roadmap
-            steps={roadmapSteps}
-            currentIndex={state.currentIndex}
-            variant="summary"
-            title="Avance de formalización"
-            showPercent
-            onOpenFull={() => router.push('/(drawer)/(tabs)/stackhome/roadmap')}
-          />
-        </View>
-
         {/* Tarjeta de RISK */}
         <View style={styles.card}>
-            <Pressable
-        onPress={() => router.push("/(drawer)/(tabs)/stackhome/riskExplanation")}
-      >
-
           <View style={styles.riskContainer}>
             <View style={styles.riskGauge}>
               <RiskMeter score={score} /> 
@@ -100,14 +60,43 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.cardButtonBottom}>
             <Feather name="external-link" size={20} color="#FF0000" />
           </TouchableOpacity>
-          </Pressable>
         </View>
 
         {/* Tarjeta de Próximos Eventos */}
         <View style={styles.card}>
           <View style={styles.eventsContainer}>
-            
-              <GoogleCalendar/>
+            <View style={styles.calendarPreview}>
+              <View style={styles.calendarHeader}>
+                <Text style={styles.calendarMonth}>JANUARY 2025</Text>
+              </View>
+              <View style={styles.calendarGrid}>
+                {/* Mini calendario simplificado */}
+                <View style={styles.calendarWeek}>
+                  <Text style={styles.calendarDay}>20</Text>
+                  <Text style={styles.calendarDay}>21</Text>
+                  <Text style={styles.calendarDay}>22</Text>
+                  <Text style={styles.calendarDay}>23</Text>
+                  <Text style={styles.calendarDay}>24</Text>
+                  <Text style={[styles.calendarDay, styles.calendarDayHighlight]}>25</Text>
+                  <Text style={styles.calendarDay}>26</Text>
+                </View>
+              </View>
+            </View>
+            <View style={styles.eventsInfo}>
+              <Text style={styles.eventsTitle}>Próximos Eventos</Text>
+              <Text style={styles.eventItem}>
+                <Text style={styles.eventDay}>Lunes 20:</Text> Lorem ipsum
+              </Text>
+              <Text style={styles.eventItem}>
+                <Text style={styles.eventDay}>Martes 22:</Text> Lorem ipsum
+              </Text>
+              <Text style={styles.eventItem}>
+                <Text style={styles.eventDay}>Viernes 25:</Text> Lorem ipsum
+              </Text>
+              <Text style={styles.eventItem}>
+                <Text style={styles.eventDay}>Sábado 26:</Text> Lorem ipsum
+              </Text>
+            </View>
           </View>
           <TouchableOpacity style={styles.cardButtonBottom}>
             <Feather name="external-link" size={20} color="#FF0000" />

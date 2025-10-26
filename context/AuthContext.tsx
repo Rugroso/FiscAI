@@ -1,7 +1,7 @@
+import { supabase } from "@/config/supabase";
 import { router } from "expo-router";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Alert } from "react-native";
-import { supabase } from "../config/supabase";
 
 interface User {
   id: string;
