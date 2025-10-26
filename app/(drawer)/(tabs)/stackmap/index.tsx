@@ -60,12 +60,18 @@ export default function BankMap() {
 
   const mapRef = useRef<MapViewRef>(null)
   const markerRefs = useRef<{ [placeId: string]: any }>({})
+  const animationTimeoutRef = useRef<any>(null)
+  const calloutTimeoutRef = useRef<any>(null)
+  const autoSelectionProcessedRef = useRef<boolean>(false) // Para evitar re-procesar en cada render
+  const lastProcessedPlaceIdRef = useRef<string>('') // Trackear último placeId procesado
+  const lastTimestampRef = useRef<string>('') // Trackear último timestamp para forzar refresh
   const router = useRouter()
   const params = useLocalSearchParams()
   const defColor = "#000000"
   const placeIdParam = (params.placeIdParam as string) || "i"
   const typeParam = (params.type as "bank" | "sat") || undefined
   const searchQueryParam = (params.searchQuery as string) || undefined
+  const timestampParam = (params._t as string) || '' // Timestamp para detectar cambios
 
   const handleModalToggle = () => {
     setModalVisible(!modalVisible)
@@ -83,6 +89,47 @@ export default function BankMap() {
       ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
     }
     return shuffled
+  }
+
+  // Función helper para limpiar timeouts pendientes
+  const clearPendingTimeouts = () => {
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current)
+      animationTimeoutRef.current = null
+    }
+    if (calloutTimeoutRef.current) {
+      clearTimeout(calloutTimeoutRef.current)
+      calloutTimeoutRef.current = null
+    }
+  }
+
+  // Función helper para seleccionar y animar hacia un lugar
+  const selectAndAnimateToPlace = (place: Place, openModal: boolean = false, showCallout: boolean = false) => {
+    clearPendingTimeouts() // Cancelar cualquier animación pendiente
+    
+    setSelectedPlace(place)
+    if (openModal) {
+      setModalVisible(false) // false = modal abierto (contrasentido del nombre)
+    }
+    
+    animationTimeoutRef.current = setTimeout(() => {
+      mapRef.current?.animateToRegion(
+        {
+          latitude: place.latitude,
+          longitude: place.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        1000,
+      )
+      
+      // Mostrar callout solo en iOS y si se solicitó
+      if (showCallout && Platform.OS === 'ios') {
+        calloutTimeoutRef.current = setTimeout(() => {
+          markerRefs.current[place.placeId]?.showCallout?.()
+        }, 1100)
+      }
+    }, 500)
   }
 
   useEffect(() => {
@@ -157,27 +204,18 @@ export default function BankMap() {
 
         setPlaces(shuffleArray(placesData))
 
-        // Si viene un placeId específico del chat, seleccionarlo
-        if (placeIdParam && placeIdParam !== "i") {
+        // Solo auto-seleccionar en la carga inicial (primera vez que se cargan lugares)
+        // Los cambios posteriores de parámetros se manejan en el useEffect dedicado
+        if (placeIdParam && placeIdParam !== "i" && !autoSelectionProcessedRef.current) {
           const selectedP = placesData.find((p) => p.placeId === placeIdParam)
           if (selectedP) {
-            console.log('[Map] Selecting specific place from chat:', selectedP.name);
-            setSelectedPlace(selectedP)
-            setTimeout(() => {
-              mapRef.current?.animateToRegion(
-                {
-                  latitude: selectedP.latitude,
-                  longitude: selectedP.longitude,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                },
-                1000,
-              )
-            }, 500)
+            console.log('[Map] Initial auto-selection from chat:', selectedP.name);
+            autoSelectionProcessedRef.current = true
+            selectAndAnimateToPlace(selectedP, true, true)
           }
         } 
         // Si NO hay placeId pero viene del chatbot (typeParam existe), seleccionar el más cercano
-        else if (typeParam && placesData.length > 0) {
+        else if (typeParam && placesData.length > 0 && !autoSelectionProcessedRef.current) {
           // Calcular distancia y seleccionar el más cercano
           const placesWithDistance = placesData.map(place => {
             const distance = Math.sqrt(
@@ -188,21 +226,9 @@ export default function BankMap() {
           });
           
           const closest = placesWithDistance.sort((a, b) => a.distance - b.distance)[0];
-          console.log('[Map] Auto-selecting closest place from chat:', closest.name);
-          setSelectedPlace(closest);
-          
-          // Animar hacia el lugar seleccionado
-          setTimeout(() => {
-            mapRef.current?.animateToRegion(
-              {
-                latitude: closest.latitude,
-                longitude: closest.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              },
-              1000,
-            );
-          }, 500);
+          console.log('[Map] Initial auto-selection of closest from chat:', closest.name);
+          autoSelectionProcessedRef.current = true
+          selectAndAnimateToPlace(closest, true, true)
         }
       } else {
         console.error("Error en la respuesta de Google Places:", data.status)
@@ -220,6 +246,8 @@ export default function BankMap() {
   useEffect(() => {
     if (userLocation) {
       console.log('[Map] Fetching places for type:', searchType);
+      autoSelectionProcessedRef.current = false // Resetear flag cuando cambia el tipo
+      lastProcessedPlaceIdRef.current = '' // Resetear último placeId procesado
       fetchPlaces();
     }
   }, [userLocation, searchType, fetchPlaces]);
@@ -233,34 +261,117 @@ export default function BankMap() {
     }
   }, [typeParam]);
 
+  // Detectar cambios en placeIdParam y forzar selección (para cuando el mapa ya está abierto)
   useEffect(() => {
-    // Si viene un placeId específico, enfocarlo después de cargar los lugares
-    if (placeIdParam && placeIdParam !== "i" && places.length > 0) {
-      console.log('[Map] Focusing place from chat:', placeIdParam);
-      const selectedP = places.find((p) => p.placeId === placeIdParam);
-      if (selectedP) {
-        setSelectedPlace(selectedP);
-        setTimeout(() => {
-          mapRef.current?.animateToRegion(
-            {
-              latitude: selectedP.latitude,
-              longitude: selectedP.longitude,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            },
-            1000,
-          );
-        }, 500);
+    console.log('[Map] 🔍 useEffect triggered - placeIdParam:', placeIdParam, 'timestamp:', timestampParam, 'lastTimestamp:', lastTimestampRef.current, 'places.length:', places.length);
+    
+    // Detectar si es una nueva navegación desde el chat (timestamp cambió)
+    const isNewNavigation = timestampParam && timestampParam !== lastTimestampRef.current;
+    
+    if (isNewNavigation && places.length > 0) {
+      console.log('[Map] 🔥 NEW NAVIGATION DETECTED - FORCING COMPLETE RELOAD, timestamp:', timestampParam);
+      lastTimestampRef.current = timestampParam; // Marcar timestamp como procesado
+      
+      // RESET COMPLETO del estado
+      clearPendingTimeouts();
+      setSelectedPlace(null); // Limpiar selección actual
+      setModalVisible(true); // Cerrar modal
+      
+      // Si hay un placeId específico, buscar ese lugar
+      if (placeIdParam && placeIdParam !== "i") {
+        const selectedP = places.find((p) => p.placeId === placeIdParam);
+        
+        if (selectedP) {
+          console.log('[Map] ✅ Found specific place:', selectedP.name);
+          lastProcessedPlaceIdRef.current = placeIdParam;
+          
+          setTimeout(() => {
+            setSelectedPlace(selectedP);
+            setModalVisible(false);
+            
+            setTimeout(() => {
+              mapRef.current?.animateToRegion(
+                {
+                  latitude: selectedP.latitude,
+                  longitude: selectedP.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                },
+                1000,
+              );
+              
+              if (Platform.OS === 'ios') {
+                setTimeout(() => {
+                  markerRefs.current[selectedP.placeId]?.showCallout?.();
+                }, 1100);
+              }
+            }, 300);
+          }, 100);
+        } else {
+          console.log('[Map] ⚠️ Place not found, triggering refetch');
+          autoSelectionProcessedRef.current = false;
+          fetchPlaces();
+        }
+      } else {
+        // Si NO hay placeId específico, seleccionar el más cercano
+        console.log('[Map] 🎯 No specific placeId, selecting closest place');
+        
+        if (userLocation && places.length > 0) {
+          const placesWithDistance = places.map(place => {
+            const distance = Math.sqrt(
+              Math.pow(place.latitude - userLocation.latitude, 2) + 
+              Math.pow(place.longitude - userLocation.longitude, 2)
+            );
+            return { ...place, distance };
+          });
+          
+          const closest = placesWithDistance.sort((a, b) => a.distance - b.distance)[0];
+          console.log('[Map] ✅ Auto-selecting closest:', closest.name);
+          
+          setTimeout(() => {
+            setSelectedPlace(closest);
+            setModalVisible(false);
+            
+            setTimeout(() => {
+              mapRef.current?.animateToRegion(
+                {
+                  latitude: closest.latitude,
+                  longitude: closest.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                },
+                1000,
+              );
+              
+              if (Platform.OS === 'ios') {
+                setTimeout(() => {
+                  markerRefs.current[closest.placeId]?.showCallout?.();
+                }, 1100);
+              }
+            }, 300);
+          }, 100);
+        }
       }
+    } else {
+      console.log('[Map] ⏭️ Skipping - conditions not met. isNewNavigation:', isNewNavigation, 'places.length:', places.length);
     }
-  }, [placeIdParam, places]);
+  }, [timestampParam, places]); // Reaccionar a cambios en timestamp o places
+
+  // Cleanup de timeouts al desmontar
+  useEffect(() => {
+    return () => {
+      clearPendingTimeouts()
+    }
+  }, [])
 
   const handleMarkerPress = (place: Place) => {
+    clearPendingTimeouts() // Cancelar animaciones pendientes
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     setSelectedPlace(place)
   }
 
   const centerMapOnPlace = (place: Place) => {
+    clearPendingTimeouts() // Cancelar animaciones pendientes
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     mapRef.current?.animateToRegion(
       {
@@ -304,13 +415,23 @@ export default function BankMap() {
           await Linking.openURL(googleMapsUrl)
         } else {
           console.log('⚠️ Google Maps app no instalada, abriendo en navegador')
-          await Linking.openURL(googleMapsWebUrl)
+          await Linking.openURL(googleMapsWebUrl).catch(() => {
+            // Silenciar error si el usuario cierra rápido el navegador
+            console.log('ℹ️ URL abierta, usuario pudo cerrar rápido')
+          })
         }
       } catch (error) {
-        console.error('❌ Error abriendo Google Maps en iOS:', error)
-        // Fallback final: Apple Maps
-        const appleMapsUrl = `http://maps.apple.com/?daddr=${place.latitude},${place.longitude}&dirflg=d`
-        await Linking.openURL(appleMapsUrl)
+        // Silenciar error común de "Unable to open URL" (usuario cerró rápido)
+        if (error instanceof Error && error.message.includes('Unable to open URL')) {
+          console.log('ℹ️ URL procesada, usuario pudo cerrar la app externa')
+        } else {
+          console.error('❌ Error inesperado abriendo Google Maps:', error)
+        }
+        // Intentar fallback a Apple Maps solo si es error real
+        try {
+          const appleMapsUrl = `http://maps.apple.com/?daddr=${place.latitude},${place.longitude}&dirflg=d`
+          await Linking.openURL(appleMapsUrl).catch(() => {})
+        } catch {}
       }
     } else {
       // En Android, Google Maps debería estar instalado por defecto
@@ -321,15 +442,22 @@ export default function BankMap() {
         const canOpen = await Linking.canOpenURL(googleMapsUrl)
         if (canOpen) {
           console.log('✅ Abriendo Google Maps app en Android')
-          await Linking.openURL(googleMapsUrl)
+          await Linking.openURL(googleMapsUrl).catch(() => {
+            console.log('ℹ️ URL abierta, usuario pudo cerrar rápido')
+          })
         } else {
           console.log('⚠️ Usando URL web de Google Maps')
-          await Linking.openURL(googleMapsWebUrl)
+          await Linking.openURL(googleMapsWebUrl).catch(() => {
+            console.log('ℹ️ URL abierta, usuario pudo cerrar rápido')
+          })
         }
       } catch (error) {
-        console.error('❌ Error abriendo Google Maps en Android:', error)
-        // Fallback: URL web
-        await Linking.openURL(googleMapsWebUrl)
+        // Silenciar errores de cierre rápido
+        if (error instanceof Error && error.message.includes('Unable to open URL')) {
+          console.log('ℹ️ URL procesada correctamente')
+        } else {
+          console.error('❌ Error inesperado en Android:', error)
+        }
       }
     }
   }
@@ -652,11 +780,14 @@ export default function BankMap() {
                 key={place.placeId}
                 style={[styles.placeCard, selectedPlace?.placeId === place.placeId && styles.selectedPlaceCard]}
                 onPress={() => {
-                  handleMarkerPress(place)
-                  centerMapOnPlace(place)
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                  clearPendingTimeouts() // Cancelar animaciones pendientes
                   setSelectedPlace(place)
+                  centerMapOnPlace(place)
+                  
+                  // Mostrar callout en iOS después de animar
                   if (Platform.OS === "ios") {
-                    setTimeout(() => {
+                    calloutTimeoutRef.current = setTimeout(() => {
                       markerRefs.current[place.placeId]?.showCallout()
                     }, 1100)
                   }

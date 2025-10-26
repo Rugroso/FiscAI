@@ -241,14 +241,22 @@ export default function ChatScreen() {
       const placeId = url.searchParams.get('placeId');
       const query = url.searchParams.get('query');
 
+      console.log('[Chat] 🔗 Deep link parsed:', { type, placeId, query });
+
       // Navegar al mapa con los parámetros
       if (url.protocol === 'fiscai:' && url.hostname === 'map') {
+        // Agregar timestamp para forzar que se detecte como cambio nuevo
+        const timestamp = Date.now();
+        
+        console.log('[Chat] 📍 Navigating to map with timestamp:', timestamp);
+        
         router.push({
           pathname: '/(drawer)/(tabs)/stackmap',
           params: {
             type: type || 'bank',
             placeIdParam: placeId || 'i',
-            searchQuery: query || ''
+            searchQuery: query || '',
+            _t: timestamp.toString() // Forzar detección de cambio
           }
         });
       }
