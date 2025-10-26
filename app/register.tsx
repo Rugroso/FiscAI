@@ -8,19 +8,19 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 
@@ -136,6 +136,9 @@ export default function RegisterScreen() {
         location,
         profilePicture
       );
+
+      router.push("/cuestionario");
+
     } catch (error) {
       console.error("Error en registro:", error);
       Alert.alert("Error", "Hubo un problema al registrar tu cuenta");
@@ -158,25 +161,6 @@ export default function RegisterScreen() {
           <Text style={styles.title}>Registro</Text>
 
           <View style={styles.formSection}>
-            <TouchableOpacity
-              style={styles.imagePickerContainer}
-              onPress={pickProfileImage}
-            >
-              {profilePicture ? (
-                <Image
-                  source={{ uri: profilePicture }}
-                  style={styles.profileImage}
-                />
-              ) : (
-                <View style={styles.imagePlaceholder}>
-                  <Feather name="camera" size={32} color="#999" />
-                  <Text style={styles.imagePlaceholderText}>Foto de Perfil</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <Text style={styles.helperText}>
-              Selecciona una foto de perfil para tu cuenta (opcional)
-            </Text>
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Correo Electrónico</Text>
@@ -489,10 +473,10 @@ const styles = StyleSheet.create({
     borderColor: "#CCCCCC",
   },
   inputError: {
-    borderColor: "#FF0000",
+    borderColor: "#E80000",
   },
   errorText: {
-    color: "#FF0000",
+    color: "#E80000",
     fontSize: 12,
     marginTop: 4,
   },
@@ -526,7 +510,7 @@ const styles = StyleSheet.create({
     color: "#000000",
   },
   loginLink: {
-    color: "#000000",
+    color: "#E80000",
     fontWeight: "bold",
     textDecorationLine: "underline",
   },

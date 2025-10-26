@@ -1,5 +1,5 @@
-import { supabase } from "@/config/supabase";
-import { url, ENDPOINTS, API_BASE_URL } from "@/config/api";
+import { supabase } from "@/supabase";
+import { url, ENDPOINTS, API_BASE_URL } from "@/api";
 
 export type Role = "user" | "assistant" | "system" | "tool";
 

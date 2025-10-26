@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     color: "#000000",
   },
   registerLink: {
-    color: "#000000",
+    color: "#E80000",
     fontWeight: "bold",
     textDecorationLine: "underline",
   },

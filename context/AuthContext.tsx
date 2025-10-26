@@ -1,4 +1,4 @@
-import { supabase } from "@/config/supabase";
+import { supabase } from "@/supabase";
 import { router } from "expo-router";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Alert } from "react-native";
@@ -150,18 +150,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) throw error;
 
-      if (data.user) {
-        Alert.alert(
-          "Registro Exitoso",
-          "Tu cuenta ha sido creada. Por favor, verifica tu correo electrónico antes de iniciar sesión.",
-          [
-            {
-              text: "OK",
-              onPress: () => router.replace("/login" as any),
-            },
-          ]
-        );
-      }
     } catch (error: any) {
       console.error("Error en registro:", error);
       Alert.alert("Error", error.message || "Error al registrarse");

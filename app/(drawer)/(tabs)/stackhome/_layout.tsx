@@ -21,7 +21,7 @@ export default function StackHomeLayout() {
                 headerTitle: () => (
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Text style={{ fontSize: 24, fontWeight: "bold", color: "#000000" }}>Fisc</Text>
-                    <Text style={{ fontSize: 24, fontWeight: "bold", color: "#FF0000" }}>AI</Text>
+                    <Text style={{ fontSize: 24, fontWeight: "bold", color: "#E80000" }}>AI</Text>
                   </View>
                 ),
                   headerLeft: () => (
@@ -44,7 +44,7 @@ export default function StackHomeLayout() {
               }}
             />
        <Stack.Screen
-              name="riskExplanation"
+              name="recomendacion"
               options={{
                 headerTitle: () => (
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -63,7 +63,17 @@ export default function StackHomeLayout() {
                     <Text style={{ fontSize: 24, fontWeight: "bold", color: "#FF0000" }}>AI</Text>
                   </View>
                 ),
-                headerTitleAlign: 'center'
+              }}
+            />
+       <Stack.Screen
+              name="beneficios"
+              options={{
+                headerTitle: () => (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Text style={{ fontSize: 24, fontWeight: "bold", color: "#000000" }}>Fisc</Text>
+                    <Text style={{ fontSize: 24, fontWeight: "bold", color: "#FF0000" }}>AI</Text>
+                  </View>
+                ),
               }}
             />
        <Stack.Screen name="doctor" options={{ headerTitle: "Detalle" }} />
