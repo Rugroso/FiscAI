@@ -270,6 +270,8 @@ export default function RegisterScreen() {
                         }
                       }}
                       style={styles.iosDatePicker}
+                      textColor="#000000"
+                      themeVariant="light"
                     />
                   </View>
                 </View>
