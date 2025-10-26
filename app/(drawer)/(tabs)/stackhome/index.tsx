@@ -231,18 +231,15 @@ const cardData = [
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Potencial de crecimiento</Text>
           <View style={styles.growthContainer}>
-            <View style={styles.riskMeterContainer}>
-              <GrowthPotential multiplier={growthMultiplier} size={160} />
-            </View>
-            <View style={styles.growthLegendContainer}>
-              <Text style={styles.growthLegendTitle}>Proyección Anual</Text>
-              <Text style={styles.growthLegendValue}>
-                {((growthMultiplier - 1) * 100).toFixed(0)}% de crecimiento
-              </Text>
-              <Text style={styles.growthDescription}>
-                Potencial calculado por el modelo de IA de FiscAI
-              </Text>
-            </View>
+            {user?.id ? (
+              <GrowthPotential 
+                userId={user.id} 
+                size={180} 
+                showDetails={true}
+              />
+            ) : (
+              <Text style={styles.noUserText}>Inicia sesión para ver tu potencial de crecimiento</Text>
+            )}
           </View>
         </View>
 
@@ -614,5 +611,11 @@ const styles = StyleSheet.create({
   eventDay: {
     fontWeight: "bold",
     color: "#000000",
+  },
+  noUserText: {
+    fontSize: 14,
+    color: "#666666",
+    textAlign: "center",
+    padding: 20,
   },
 });
