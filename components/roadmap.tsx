@@ -52,15 +52,6 @@ export function Roadmap({ steps, currentIndex = 0, onStepPress, title = 'Roadmap
           <Text style={[styles.headerTitle, { color: theme.text }]}>{title}</Text>
         </View>
         <View style={styles.summaryRow}>
-          {showPercent && (
-            <View style={{ flexDirection: 'column' }}>
-              <Text style={[styles.progressLabel, { color: theme.muted || '#6B6B6B' }]}>{progressTitle}</Text>
-              <Text style={[styles.summaryPercent, { color: theme.progressPrimary }]}>{Math.round(Math.max(0, Math.min(1, progressPct)) * 100)}%</Text>
-            </View>
-          )}
-          <TouchableOpacity onPress={onOpenFull} accessibilityRole="button" style={styles.summaryMoreButton}>
-            <Feather name="external-link" size={22} color="#FF0000" />
-          </TouchableOpacity>
         </View>
       </View>
     );
