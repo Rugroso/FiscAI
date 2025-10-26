@@ -38,7 +38,7 @@ export default function HomeScreen() {
     switch (key) {
       case 'perfil':
       case 'regimen':
-        router.push('/(drawer)/(tabs)/stackhome/informal');
+        router.push('/(drawer)/(tabs)/stackhome/recomendacion');
         break;
       case 'obligaciones':
       case 'riesgos':
@@ -73,7 +73,7 @@ export default function HomeScreen() {
             <Text style={styles.cardFooterText}>
               Presiona para guiarte{"\n"}en el proceso de formalizar
             </Text>
-            <TouchableOpacity style={styles.cardButton} onPress={() => router.push('/(drawer)/(tabs)/stackhome/informal')}>
+            <TouchableOpacity style={styles.cardButton} onPress={() => router.push('/(drawer)/(tabs)/stackhome/recomendacion')}>
               
               <Feather name="external-link" size={20} color="#FF0000" />
             </TouchableOpacity>
@@ -92,27 +92,7 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* Tarjeta de RISK */}
-        <View style={styles.card}>
-            <Pressable
-        onPress={() => router.push("/(drawer)/(tabs)/stackhome/riskExplanation")}
-      >
 
-
-          <View style={styles.riskContainer}>
-            <View style={styles.riskGauge}>
-              <RiskMeter score={score} /> 
-            </View>
-            <View style={styles.riskInfo}>
-              <Text style={styles.riskLabel}>Puntuaje: <Text style={styles.riskValue}>{score}</Text></Text>
-              <Text style={styles.riskLabel}>Sugerencia: <Text style={styles.riskSuggestion}>Lorem ipsum dolor sit amet...</Text></Text>
-            </View>
-          </View>
-          <TouchableOpacity style={styles.cardButtonBottom}>
-            <Feather name="external-link" size={20} color="#FF0000" />
-          </TouchableOpacity>
-          </Pressable>
-        </View>
         <View style={styles.card}>
           <Pressable
             onPress={() => router.push("/(drawer)/(tabs)/stackhome/beneficios")}
