@@ -1,5 +1,5 @@
 import { supabase } from "@/config/supabase";
-import { url, ENDPOINTS } from "@/config/api";
+import { url, ENDPOINTS, API_BASE_URL } from "@/config/api";
 
 export type Role = "user" | "assistant" | "system" | "tool";
 
@@ -109,6 +109,15 @@ export async function sendUserMessage(
     .select("*")
     .single();
   if (error) throw error;
+  try {
+    console.log("[Chat] User message inserted", {
+      id: data?.id,
+      conversationId,
+      userId,
+      contentPreview: content?.slice(0, 120),
+      contentLength: content?.length,
+    });
+  } catch {}
 
   // Llamar a tu Lambda para generar respuesta del asistente
   // (sin await para no bloquear, la respuesta llegará por Realtime)
@@ -129,8 +138,18 @@ async function processMessageWithLambda(
   try {
     // Obtener TODO el historial de la conversación
     const history = await listMessages(conversationId);
+    console.log("[Chat] Preparing Lambda request", {
+      API_BASE_URL,
+      endpoint: ENDPOINTS.chat,
+      conversationId,
+      userId,
+      messageId,
+      userMessagePreview: userMessage?.slice(0, 120),
+      userMessageLength: userMessage?.length,
+    });
     
     // Formatear historial para la Lambda
+    console.log("[Chat] History loaded", { count: history.length });
     const messageHistory = history.map((msg) => ({
       role: msg.role,
       content: msg.content || "",
@@ -138,6 +157,13 @@ async function processMessageWithLambda(
     }));
 
     // Usar la URL configurada desde .env para el bridge MCP
+    try {
+      console.log("[Chat] Lambda request payload (summary)", {
+        historyLen: messageHistory.length,
+        firstRoles: messageHistory.slice(0, 3).map((m) => m.role),
+        lastRoles: messageHistory.slice(-3).map((m) => m.role),
+      });
+    } catch {}
     const response = await fetch(url(ENDPOINTS.chat), {
       method: "POST",
       headers: {
@@ -160,20 +186,53 @@ async function processMessageWithLambda(
     }
 
     const data = await response.json().catch(() => ({}));
-    console.log("[Chat] Lambda response:", data);
-
+    try {
+      console.log("[Chat] Lambda response (summary)", {
+        ok: response.ok,
+        status: response.status,
+        keys: Object.keys(data || {}),
+        hasData: !!data?.data,
+        hasContent: Array.isArray(data?.data?.content),
+        contentLen: Array.isArray(data?.data?.content) ? data.data.content.length : 0,
+        hasStructuredContent: !!data?.data?.structuredContent,
+        scKeys: data?.data?.structuredContent ? Object.keys(data.data.structuredContent) : [],
+      });
+    } catch {}
     // Insertar mensaje del asistente en Supabase (el bridge actual no lo hace)
     try {
       const assistantText = extractAssistantText(data);
+    
+      console.log("[Chat] Extracted assistant text (preview)", {
+        length: assistantText?.length || 0,
+        preview: assistantText ? assistantText.slice(0, 160) : null,
+      });
       if (assistantText) {
-        await supabase.from("messages").insert({
-          conversation_id: conversationId,
-          author_id: null,
-          role: "assistant",
-          content: assistantText,
-          message_type: "text",
-          status: "sent",
-        });
+        const { data: inserted, error: insErr } = await supabase
+          .from("messages")
+          .insert({
+            conversation_id: conversationId,
+            author_id: null,
+            role: "assistant",
+            content: assistantText,
+            message_type: "text",
+            status: "sent",
+          })
+          .select("*")
+          .single();
+        if (insErr) {
+          console.warn("[Chat] Supabase insert assistant FAILED", {
+            code: (insErr as any)?.code,
+            details: (insErr as any)?.details,
+            hint: (insErr as any)?.hint,
+            message: insErr.message,
+          });
+        } else {
+          console.log("[Chat] Assistant message inserted", {
+            id: inserted?.id,
+            conversationId,
+            contentLen: inserted?.content?.length,
+          });
+        }
       }
     } catch (insertErr) {
       console.warn("[Chat] Could not insert assistant message:", insertErr);
@@ -240,7 +299,22 @@ function extractAssistantText(resp: any): string | null {
     if (typeof c === "object" && c?.text && typeof c.text === "string") return c.text;
   }
 
-  // 3) Formato MCP: content puede venir anidado (p.ej. [[{ type: 'text', text: '...' }]])
+  // 3) structuredContent: priorizar si viene texto limpio ahí (evita strings JSON en content)
+  const sc = payload?.structuredContent;
+  if (sc) {
+    // Mensaje humano-para-humano (no siempre es la respuesta principal)
+    let fallbackMsg: string | null = null;
+    if (typeof sc.message === "string" && sc.message.trim()) {
+      fallbackMsg = sc.message as string;
+    }
+    const data = sc.data;
+    if (typeof data === "string" && data.trim()) return data;
+    const deep = findFirstString(data);
+    if (deep) return deep;
+    if (fallbackMsg) return fallbackMsg;
+  }
+
+  // 4) Formato MCP: content puede venir anidado (p.ej. [[{ type: 'text', text: '...' }]])
   const getTextFromParts = (parts: any[]): string | null => {
     for (const part of parts) {
       if (!part) continue;
@@ -263,25 +337,6 @@ function extractAssistantText(resp: any): string | null {
   if (Array.isArray(payload?.content)) {
     const textFromContent = getTextFromParts(payload.content);
     if (textFromContent) return textFromContent;
-  }
-
-  // 4) structuredContent: tratar de extraer texto de campos comunes
-  const sc = payload?.structuredContent;
-  if (sc) {
-    // Mensaje humano-para-humano (no siempre es la respuesta principal)
-    let fallbackMsg: string | null = null;
-    if (typeof sc.message === "string" && sc.message.trim()) {
-      // Evitar devolver solo un mensaje meta si hay data útil
-      // lo usaremos solo si no hay texto mejor
-      fallbackMsg = sc.message as string;
-    }
-    const data = sc.data;
-    // Si data es string directa
-    if (typeof data === "string" && data.trim()) return data;
-    // Si data es objeto o array, buscar campos text/answer/content
-    const deep = findFirstString(data);
-    if (deep) return deep;
-    if (fallbackMsg) return fallbackMsg;
   }
 
   // 5) buscar en profundidad por el primer string razonable
@@ -309,7 +364,7 @@ function findFirstString(obj: any): string | null {
   }
   if (typeof obj === "object") {
     // Priorizar campos comunes
-    const keysPriority = ["text", "answer", "content", "message", "summary", "output", "result"];
+    const keysPriority = ["response", "text", "answer", "content", "message", "summary", "output", "result"];
     for (const k of keysPriority) {
       if (typeof obj[k] === "string" && obj[k].trim()) return obj[k];
     }
@@ -327,6 +382,7 @@ export function subscribeToMessages(
   conversationId: string,
   onChange: (row: MessageRow, type: "INSERT" | "UPDATE" | "DELETE") => void
 ): Unsubscribe {
+  console.log("[Chat] Subscribing to messages", { conversationId });
   const channel = supabase
     .channel(`realtime:messages:${conversationId}`)
     .on(
@@ -336,12 +392,22 @@ export function subscribeToMessages(
         // payload.new for INSERT/UPDATE, payload.old for DELETE
         const type = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
         const row = (type === "DELETE" ? (payload.old as any) : (payload.new as any)) as MessageRow;
+        try {
+          console.log("[Chat] Realtime event", {
+            type,
+            id: row?.id,
+            role: row?.role,
+            author_id: row?.author_id,
+            contentPreview: row?.content ? row.content.slice(0, 120) : null,
+          });
+        } catch {}
         onChange(row, type);
       }
     )
     .subscribe();
 
   return () => {
+    console.log("[Chat] Unsubscribing messages", { conversationId });
     supabase.removeChannel(channel);
   };
 }
