@@ -15,6 +15,7 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   SafeAreaView,
   StyleSheet,
@@ -29,6 +30,7 @@ interface Message {
   text: string;
   isUser: boolean;
   timestamp: Date;
+  deepLink?: string; // Nuevo: para deep links del mapa
 }
 
 export default function ChatScreen() {
@@ -40,6 +42,7 @@ export default function ChatScreen() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const unsubRef = useRef<null | (() => void)>(null);
   const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Bootstrap conversation + realtime
   useEffect(() => {
@@ -65,6 +68,11 @@ export default function ChatScreen() {
             // Cuando llega un mensaje del asistente, ocultamos el indicador de "Escribiendo…"
             if (ui && ui.isUser === false && (row as any).role === "assistant") {
               setIsTyping(false);
+              // Limpiar timeout si existe
+              if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = null;
+              }
             }
             // INSERT or UPDATE -> upsert by id
             const idx = prev.findIndex((m) => m.id === ui.id);
@@ -77,7 +85,8 @@ export default function ChatScreen() {
 
         setDbReady(true);
       } catch (err) {
-        console.warn("[Chat] DB not ready or tables missing:", err);
+        console.error("[Chat] ⚠️ DB ERROR:", err);
+        console.error("[Chat] Error details:", JSON.stringify(err, null, 2));
         // Seed a local welcome message when DB is unavailable
         setMessages([
           {
@@ -97,6 +106,11 @@ export default function ChatScreen() {
         unsubRef.current();
         unsubRef.current = null;
       }
+      // Limpiar timeout al desmontar
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
     };
   }, [user?.id]);
 
@@ -109,9 +123,26 @@ export default function ChatScreen() {
     if (dbReady && conversationId && user?.id) {
       try {
         setIsTyping(true);
+        
+        // Timeout de seguridad: ocultar "escribiendo..." después de 30 segundos
+        typingTimeoutRef.current = setTimeout(() => {
+          console.warn('[Chat] Typing timeout reached, hiding indicator');
+          setIsTyping(false);
+          typingTimeoutRef.current = null;
+        }, 30000);
+        
         await sendUserMessage(conversationId, user.id, content);
+        
+        // Nota: NO ocultamos isTyping aquí porque esperamos que llegue por realtime
+        // Si no llega en 30 segundos, el timeout lo ocultará
       } catch (err) {
         console.error("Error enviando mensaje a Supabase:", err);
+        setIsTyping(false);
+        // Limpiar timeout si hubo error
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = null;
+        }
         // Fallback local append
         const localMsg: Message = {
           id: Date.now().toString(),
@@ -202,6 +233,31 @@ export default function ChatScreen() {
     });
   };
 
+  const handleDeepLink = (deepLink: string) => {
+    try {
+      // Parsear el deep link: fiscai://map?type=bank&placeId=ChIJ...&query=...
+      const url = new URL(deepLink);
+      const type = url.searchParams.get('type') as 'bank' | 'sat' | null;
+      const placeId = url.searchParams.get('placeId');
+      const query = url.searchParams.get('query');
+
+      // Navegar al mapa con los parámetros
+      if (url.protocol === 'fiscai:' && url.hostname === 'map') {
+        router.push({
+          pathname: '/(drawer)/(tabs)/stackmap',
+          params: {
+            type: type || 'bank',
+            placeIdParam: placeId || 'i',
+            searchQuery: query || ''
+          }
+        });
+      }
+    } catch (error) {
+      console.error('[Chat] Error parsing deep link:', error);
+      Alert.alert('Error', 'No se pudo abrir el mapa');
+    }
+  };
+
   const renderMessage = ({ item }: { item: Message }) => (
     <View
       style={[
@@ -223,6 +279,16 @@ export default function ChatScreen() {
         >
           {item.text}
         </Text>
+        {/* Botón para abrir el mapa si hay deep link */}
+        {!item.isUser && item.deepLink && (
+          <TouchableOpacity
+            style={styles.mapButton}
+            onPress={() => handleDeepLink(item.deepLink!)}
+          >
+            <MaterialCommunityIcons name="map-marker" size={18} color="#FFF" />
+            <Text style={styles.mapButtonText}>Abrir Mapa</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -464,6 +530,22 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
+  },
+  mapButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FF0000",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  mapButtonText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 6,
   },
   banner: {
     marginHorizontal: 16,

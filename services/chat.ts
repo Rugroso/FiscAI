@@ -201,10 +201,15 @@ async function processMessageWithLambda(
     // Insertar mensaje del asistente en Supabase (el bridge actual no lo hace)
     try {
       const assistantText = extractAssistantText(data);
+      const deepLink = extractDeepLink(data);
     
-      console.log("[Chat] Extracted assistant text (preview)", {
-        length: assistantText?.length || 0,
-        preview: assistantText ? assistantText.slice(0, 160) : null,
+      console.log("[Chat] Extracted values:", {
+        textLength: assistantText?.length || 0,
+        textPreview: assistantText ? assistantText.slice(0, 100) : null,
+        textStartsWith: assistantText ? assistantText.slice(0, 10) : null,
+        isJSON: assistantText ? assistantText.startsWith('{') : false,
+        hasDeepLink: !!deepLink,
+        deepLink: deepLink || null,
       });
       if (assistantText) {
         const { data: inserted, error: insErr } = await supabase
@@ -216,6 +221,7 @@ async function processMessageWithLambda(
             content: assistantText,
             message_type: "text",
             status: "sent",
+            payload: deepLink ? { deep_link: deepLink } : null, // Guardar deep link en payload
           })
           .select("*")
           .single();
@@ -231,6 +237,7 @@ async function processMessageWithLambda(
             id: inserted?.id,
             conversationId,
             contentLen: inserted?.content?.length,
+            hasDeepLink: !!deepLink,
           });
         }
       }
@@ -276,32 +283,176 @@ async function processMessageWithLambda(
   }
 }
 
+// Extrae el deep link de la respuesta del MCP (para abrir el mapa)
+function extractDeepLink(resp: any): string | null {
+  if (!resp) return null;
+  
+  const payload = resp?.data ?? resp;
+  
+  console.log('[extractDeepLink] Checking payload:', {
+    hasContent: Array.isArray(payload?.content),
+    contentLength: Array.isArray(payload?.content) ? payload.content.length : 0,
+    firstItem: Array.isArray(payload?.content) && payload.content[0] 
+      ? { type: payload.content[0].type, textPreview: payload.content[0].text?.slice(0, 100) }
+      : null
+  });
+  
+  // CASO ESPECIAL: Si content es un array con JSON string (formato MCP)
+  if (Array.isArray(payload?.content)) {
+    for (const item of payload.content) {
+      if (item?.type === 'text' && item?.text) {
+        console.log('[extractDeepLink] Attempting to parse text:', item.text.slice(0, 200));
+        try {
+          // PRIMER PARSEO: El wrapper del Lambda
+          const parsed = JSON.parse(item.text);
+          console.log('[extractDeepLink] First parse successful!', { 
+            hasDeepLink: !!parsed?.deep_link,
+            hasData: !!parsed?.data,
+            hasResponse: !!parsed?.data?.response 
+          });
+          
+          // Si el deep_link está directamente aquí, retornarlo
+          if (parsed?.deep_link && typeof parsed.deep_link === 'string') {
+            console.log('[extractDeepLink] ✅ Found deep_link at root:', parsed.deep_link);
+            return parsed.deep_link;
+          }
+          
+          // SEGUNDO PARSEO: El contenido real del MCP está en data.response como string
+          if (parsed?.data?.response && typeof parsed.data.response === 'string') {
+            console.log('[extractDeepLink] Found nested response, attempting second parse...');
+            try {
+              const innerParsed = JSON.parse(parsed.data.response);
+              console.log('[extractDeepLink] Second parse successful!', { hasDeepLink: !!innerParsed?.deep_link });
+              if (innerParsed?.deep_link && typeof innerParsed.deep_link === 'string') {
+                console.log('[extractDeepLink] ✅ Found deep_link in nested response:', innerParsed.deep_link);
+                return innerParsed.deep_link;
+              }
+            } catch (innerErr) {
+              console.log('[extractDeepLink] ❌ Second parse failed:', (innerErr as Error).message);
+            }
+          }
+        } catch (e) {
+          console.log('[extractDeepLink] ❌ First parse failed:', (e as Error).message);
+          // No es JSON, continuar
+        }
+      }
+    }
+  }
+  
+  // También intentar parsear desde structuredContent.data.response
+  if (payload?.structuredContent?.data?.response && typeof payload.structuredContent.data.response === 'string') {
+    console.log('[extractDeepLink] Found structuredContent.data.response, attempting parse...');
+    try {
+      const parsed = JSON.parse(payload.structuredContent.data.response);
+      if (parsed?.deep_link && typeof parsed.deep_link === 'string') {
+        console.log('[extractDeepLink] ✅ Found deep_link in structuredContent:', parsed.deep_link);
+        return parsed.deep_link;
+      }
+    } catch (e) {
+      console.log('[extractDeepLink] ❌ Failed to parse structuredContent.data.response');
+    }
+  }
+  
+  // Buscar deep_link en diferentes niveles
+  if (payload?.deep_link && typeof payload.deep_link === 'string') {
+    return payload.deep_link;
+  }
+  
+  if (payload?.data?.deep_link && typeof payload.data.deep_link === 'string') {
+    return payload.data.deep_link;
+  }
+  
+  // Buscar en structuredContent
+  if (payload?.structuredContent?.data?.deep_link) {
+    return payload.structuredContent.data.deep_link;
+  }
+  
+  return null;
+}
+
 // Intenta extraer el texto útil de varias posibles formas de respuesta
+// También maneja respuestas estructuradas como deep links para abrir el mapa
 function extractAssistantText(resp: any): string | null {
   if (!resp) return null;
 
   // En el bridge, el cuerpo esperado es { success, data, ... }
   const payload = resp?.data ?? resp;
 
+  // Detectar si es una respuesta con deep link del mapa
+  if (payload?.deep_link && payload?.user_message) {
+    // Formato: { deep_link: "fiscai://map?type=bank&placeId=...", user_message: "..." }
+    return payload.user_message;
+  }
+
   // 1) Si es string directo
   if (typeof payload === "string") return payload;
 
-  // 2) Candidatos comunes directos
+  // 2) Candidatos comunes directos (NO incluir response, puede ser JSON string)
   const candidates: Array<any> = [
     payload?.text,
     payload?.message,
     payload?.output,
-    payload?.response,
     payload?.result,
   ];
   for (const c of candidates) {
     if (typeof c === "string" && c.trim()) return c;
     if (typeof c === "object" && c?.text && typeof c.text === "string") return c.text;
   }
+  
+  // 2.5) Si payload.data.response es un string (respuesta del MCP), intentar parsear
+  if (payload?.data?.response && typeof payload.data.response === 'string') {
+    console.log('[extractAssistantText] Found payload.data.response, attempting parse...');
+    try {
+      const parsed = JSON.parse(payload.data.response);
+      console.log('[extractAssistantText] Parsed successfully!', { hasText: !!parsed?.text });
+      if (parsed?.text && typeof parsed.text === 'string') {
+        console.log('[extractAssistantText] ✅ Found text in payload.data.response:', parsed.text.slice(0, 50));
+        return parsed.text;
+      }
+    } catch (e) {
+      // No es JSON, retornar el string directo
+      console.log('[extractAssistantText] payload.data.response is not JSON, using as-is');
+      return payload.data.response;
+    }
+  }
+  
+  // También probar payload.response directo (por si viene sin data wrapper)
+  if (payload?.response && typeof payload.response === 'string') {
+    console.log('[extractAssistantText] Found payload.response, checking if JSON...');
+    try {
+      const parsed = JSON.parse(payload.response);
+      if (parsed?.text && typeof parsed.text === 'string') {
+        console.log('[extractAssistantText] ✅ Parsed payload.response, found text');
+        return parsed.text;
+      }
+    } catch (e) {
+      // No es JSON, retornar el string directo
+      console.log('[extractAssistantText] payload.response is not JSON, using as-is');
+      return payload.response;
+    }
+  }
 
   // 3) structuredContent: priorizar si viene texto limpio ahí (evita strings JSON en content)
   const sc = payload?.structuredContent;
   if (sc) {
+    // Primero intentar parsear sc.data.response si existe (puede ser JSON del MCP)
+    if (sc?.data?.response && typeof sc.data.response === 'string') {
+      console.log('[extractAssistantText] Found structuredContent.data.response, attempting parse...');
+      try {
+        const parsed = JSON.parse(sc.data.response);
+        if (parsed?.text && typeof parsed.text === 'string') {
+          console.log('[extractAssistantText] ✅ Found text in structuredContent.data.response:', parsed.text.slice(0, 50));
+          return parsed.text;
+        }
+      } catch (e) {
+        console.log('[extractAssistantText] structuredContent.data.response is not JSON');
+        // Si no es JSON, intentar usar el string directo
+        if (sc.data.response.trim()) {
+          return sc.data.response;
+        }
+      }
+    }
+    
     // Mensaje humano-para-humano (no siempre es la respuesta principal)
     let fallbackMsg: string | null = null;
     if (typeof sc.message === "string" && sc.message.trim()) {
@@ -324,6 +475,55 @@ function extractAssistantText(resp: any): string | null {
         if (t) return t;
       } else if (typeof part === "object") {
         if (part.type === "text" && typeof part.text === "string" && part.text.trim()) {
+          // CASO ESPECIAL: Intentar parsear como JSON si contiene deep_link o success
+          if (part.text.includes('deep_link') || part.text.includes('"success"')) {
+            try {
+              // PRIMER PARSEO: Wrapper del Lambda
+              const parsed = JSON.parse(part.text);
+              console.log('[extractAssistantText] First parse successful', {
+                hasText: !!parsed?.text,
+                hasData: !!parsed?.data,
+                hasResponse: !!parsed?.data?.response
+              });
+              
+              // Si el texto está directamente aquí, retornarlo
+              if (parsed?.text && typeof parsed.text === 'string') {
+                console.log('[extractAssistantText] ✅ Found text at root');
+                return parsed.text;
+              }
+              
+              // SEGUNDO PARSEO: El contenido real del MCP está en data.response como string
+              if (parsed?.data?.response && typeof parsed.data.response === 'string') {
+                console.log('[extractAssistantText] Found nested response, attempting second parse...');
+                try {
+                  const innerParsed = JSON.parse(parsed.data.response);
+                  if (innerParsed?.text && typeof innerParsed.text === 'string') {
+                    console.log('[extractAssistantText] ✅ Found text in nested response:', innerParsed.text.slice(0, 50));
+                    return innerParsed.text;
+                  }
+                  // Si no tiene campo text, pero parseó bien, buscar en el objeto
+                  console.log('[extractAssistantText] ⚠️ No text field in inner parse, keys:', Object.keys(innerParsed));
+                } catch (innerErr) {
+                  console.log('[extractAssistantText] ❌ Second parse failed, error:', (innerErr as Error).message);
+                  // NO retornar nada aquí, seguir buscando
+                }
+              }
+              
+              // Si llegamos aquí y parsed.data existe, intentar buscar más profundo
+              if (parsed?.data && !parsed?.data?.response) {
+                console.log('[extractAssistantText] Checking parsed.data keys:', Object.keys(parsed.data));
+              }
+              
+              // NO retornar el JSON crudo, seguir buscando en otros lugares
+              console.log('[extractAssistantText] ⚠️ JSON detected but not parsed, continuing search...');
+              continue; // Saltar al siguiente item en lugar de retornar
+            } catch (e) {
+              // No es JSON válido, usar texto directo
+              console.log('[extractAssistantText] Not JSON, using direct text');
+              return part.text;
+            }
+          }
+          // Solo retornar part.text si NO es JSON
           return part.text;
         }
         if (typeof part.text === "string" && part.text.trim()) return part.text;
@@ -419,6 +619,7 @@ export function toUiMessage(m: MessageRow, currentUserId: string) {
     text: m.content ?? "",
     isUser: m.role === "user" && m.author_id === currentUserId,
     timestamp: new Date(m.created_at),
+    deepLink: m.payload?.deep_link ?? undefined, // Extraer deep link del payload
   };
 }
 
