@@ -24,8 +24,6 @@ interface Place {
   placeId: string
   name: string
   address: string
-  rating?: number
-  userRatingsTotal?: number
   isOpen?: boolean
   openingHours?: string[]
   image?: string
@@ -191,8 +189,6 @@ export default function BankMap() {
             placeId: place.place_id,
             name: place.name,
             address: place.vicinity || "",
-            rating: place.rating || 0,
-            userRatingsTotal: place.user_ratings_total || 0,
             isOpen: place.opening_hours?.open_now ?? undefined,
             latitude: place.geometry.location.lat,
             longitude: place.geometry.location.lng,
@@ -585,25 +581,6 @@ export default function BankMap() {
                       {place.address || "Sin dirección disponible"}
                     </Text>
 
-                    {place.rating && (
-                      <View style={styles.calloutRating}>
-                        {Array(5)
-                          .fill(0)
-                          .map((_, i) => (
-                            <MaterialCommunityIcons
-                              key={i}
-                              name="star"
-                              size={12}
-                              color={i < Math.floor(place.rating || 0) ? "#000000" : "#E0E0E0"}
-                              style={{ marginRight: 2 }}
-                            />
-                          ))}
-                        <Text style={styles.calloutRatingText}>
-                          {place.rating.toFixed(1)} ({place.userRatingsTotal})
-                        </Text>
-                      </View>
-                    )}
-
                     {place.isOpen !== undefined && (
                       <View style={styles.calloutStatus}>
                         <View
@@ -635,23 +612,6 @@ export default function BankMap() {
               <View style={styles.androidPlaceInfoHeaderText}>
                 <Text style={styles.androidPlaceInfoTitle}>{selectedPlace.name}</Text>
                 <Text style={styles.androidPlaceInfoSpecialty}>{selectedPlace.vicinity}</Text>
-
-                {selectedPlace.rating && (
-                  <View style={styles.androidPlaceInfoRating}>
-                    {Array(5)
-                      .fill(0)
-                      .map((_, i) => (
-                        <MaterialCommunityIcons
-                          key={i}
-                          name="star"
-                          size={14}
-                          color={i < Math.floor(selectedPlace.rating || 0) ? "#000000" : "#E0E0E0"}
-                          style={{ marginRight: 2 }}
-                        />
-                      ))}
-                    <Text style={styles.androidPlaceInfoRatingText}>{selectedPlace.rating.toFixed(1)}</Text>
-                  </View>
-                )}
               </View>
 
               <TouchableOpacity style={styles.androidPlaceInfoCloseButton} onPress={() => setSelectedPlace(null)}>
@@ -809,12 +769,6 @@ export default function BankMap() {
                   <Text style={styles.placeCardAddress} numberOfLines={1}>
                     {place.vicinity}
                   </Text>
-                  {place.rating && (
-                    <View style={styles.placeCardRating}>
-                      <MaterialCommunityIcons name="star" size={16} color="#000000" />
-                      <Text style={styles.placeCardRatingText}>{place.rating.toFixed(1)}</Text>
-                    </View>
-                  )}
                 </View>
                 {place.isOpen !== undefined && !place.isOpen && (
                   <View style={[styles.placeCardStatus, { backgroundColor: "#F44336" }]}>
@@ -992,16 +946,6 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 8,
   },
-  calloutRating: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  calloutRatingText: {
-    fontSize: 12,
-    color: "#666",
-    marginLeft: 4,
-  },
   calloutStatus: {
     flexDirection: "row",
     alignItems: "center",
@@ -1167,15 +1111,6 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 4,
   },
-  placeCardRating: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  placeCardRatingText: {
-    fontSize: 12,
-    color: "#666",
-    marginLeft: 4,
-  },
   placeCardStatus: {
     position: "absolute",
     top: 8,
@@ -1249,15 +1184,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     marginBottom: 4,
-  },
-  androidPlaceInfoRating: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  androidPlaceInfoRatingText: {
-    fontSize: 14,
-    color: "#666",
-    marginLeft: 4,
   },
   androidPlaceInfoCloseButton: {
     width: 32,
