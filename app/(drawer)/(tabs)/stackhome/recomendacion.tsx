@@ -14,6 +14,7 @@ import {
     TouchableOpacity,
     View
 } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from "@/supabase";
 
 interface BusinessData {
@@ -89,12 +90,27 @@ export default function InformalScreen() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<ApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isFromCache, setIsFromCache] = useState(false);
 
   useEffect(() => {
-    fetchRecommendation();
+    loadRecommendation();
   }, [user?.id]);
 
-  const fetchRecommendation = async () => {
+  const generateDataHash = (businessData: BusinessData): string => {
+    const relevantData = {
+      actividad: businessData.actividad,
+      monthly_income: businessData.monthly_income,
+      employees: businessData.employees,
+      has_rfc: businessData.has_rfc,
+      has_efirma: businessData.has_efirma,
+      emite_cfdi: businessData.emite_cfdi,
+      declara_mensual: businessData.declara_mensual,
+    };
+    return JSON.stringify(relevantData);
+  };
+
+  const loadRecommendation = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -105,6 +121,8 @@ export default function InformalScreen() {
         return;
       }
 
+      const cachedData = await AsyncStorage.getItem(`recommendation_${user.id}`);
+      const cachedHash = await AsyncStorage.getItem(`recommendation_hash_${user.id}`);
 
       const { data: businessData, error: businessError } = await supabase
         .from('businesses')
@@ -112,7 +130,7 @@ export default function InformalScreen() {
         .eq('user_id', user.id)
         .single();
 
-      if (businessError) {
+      if (businessError || !businessData) {
         console.error('❌ Error obteniendo datos del negocio:', businessError);
         setError("No se encontraron datos del negocio");
         Alert.alert(
@@ -126,16 +144,76 @@ export default function InformalScreen() {
         return;
       }
 
+      const currentHash = generateDataHash(businessData);
+      
+      if (cachedData && cachedHash === currentHash) {
+        console.log(' Cargando recomendación');
+        const parsedData = JSON.parse(cachedData);
+        setData(parsedData);
+        setIsFromCache(true);
+        setLoading(false);
+      } else {
+        console.log(' Datos actualizados, obteniendo nueva recomendación');
+        setIsFromCache(false);
+        await fetchRecommendation(businessData, currentHash);
+      }
+    } catch (err) {
+      console.error(" Error cargando recomendacion:", err);
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Forzar actualización manual
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchRecommendation();
+    setIsRefreshing(false);
+  };
+
+  const fetchRecommendation = async (existingBusinessData?: BusinessData, existingHash?: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!user?.id) {
+        setError("Usuario no autenticado");
+        Alert.alert("Error", "Debes iniciar sesión para ver recomendaciones");
+        return;
+      }
+
+      // Usar datos existentes o obtener nuevos
+      let businessData: BusinessData | null = existingBusinessData || null;
+      let currentHash = existingHash;
+
+      if (!businessData) {
+        const { data: fetchedData, error: businessError } = await supabase
+          .from('businesses')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (businessError || !fetchedData) {
+          console.error(' Error obteniendo datos del negocio:', businessError);
+          setError("No se encontraron datos del negocio");
+          Alert.alert(
+            "Sin Datos",
+            "Primero debes completar el cuestionario de tu negocio",
+            [
+              { text: "Cancelar", style: "cancel" },
+              { text: "Ir al Cuestionario", onPress: () => router.push('/cuestionario') }
+            ]
+          );
+          return;
+        }
+
+        businessData = fetchedData;
+        currentHash = generateDataHash(fetchedData);
+      }
+
       if (!businessData) {
         setError("No se encontraron datos del negocio");
-        Alert.alert(
-          "Sin Datos",
-          "Primero debes completar el cuestionario de tu negocio",
-          [
-            { text: "Cancelar", style: "cancel" },
-            { text: "Ir al Cuestionario", onPress: () => router.push('/cuestionario') }
-          ]
-        );
         return;
       }
 
@@ -241,6 +319,16 @@ export default function InformalScreen() {
       setData(transformedData);
       console.log('✅ Recomendación procesada y estado actualizado');
       console.log(transformedData);
+
+      try {
+        await AsyncStorage.setItem(`recommendation_${user.id}`, JSON.stringify(transformedData));
+        if (currentHash) {
+          await AsyncStorage.setItem(`recommendation_hash_${user.id}`, currentHash);
+        }
+        setIsFromCache(false);
+      } catch (cacheError) {
+        console.warn('⚠️ Error guardando en cache:', cacheError);
+      }
 
       
     } catch (err) {
@@ -508,7 +596,7 @@ export default function InformalScreen() {
         <View style={styles.errorContainer}>
           <MaterialCommunityIcons name="alert-circle" size={60} color="#FF0000" />
           <Text style={styles.errorText}>{error || "Error al cargar datos"}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchRecommendation}>
+          <TouchableOpacity style={styles.retryButton} onPress={() => loadRecommendation()}>
             <Text style={styles.retryButtonText}>Reintentar</Text>
           </TouchableOpacity>
         </View>
@@ -519,13 +607,22 @@ export default function InformalScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      {/* <View style={styles.header}>
-        <TouchableOpacity onPress={fetchRecommendation}>
-          <MaterialCommunityIcons name="refresh" size={24} color="#000000" />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <MaterialIcons name="arrow-back" size={24} color="#000000" />
         </TouchableOpacity>
-      </View> */}
+        <Text style={styles.headerTitle}>Recomendación Fiscal</Text>
+        <TouchableOpacity onPress={handleRefresh} disabled={isRefreshing}>
+          <MaterialCommunityIcons 
+            name="refresh" 
+            size={24} 
+            color={isRefreshing ? "#CCCCCC" : "#000000"} 
+          />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        
         {/* Warning for insufficient data */}
         {data.recommendation && data.recommendation.toLowerCase().includes('información insuficiente') && (
           <View style={styles.warningCard}>
@@ -683,12 +780,13 @@ export default function InformalScreen() {
           </View>
         )}
 
-        {/* Profile Info Card - ÚLTIMO (colapsable) */}
-        <TouchableOpacity 
-          style={styles.collapsibleCard}
-          onPress={() => {/* Puedes agregar estado para expandir/colapsar */}}
-        >
-        </TouchableOpacity>
+        {/* Cache indicator */}
+        {isFromCache && (
+          <View style={styles.cacheIndicator}>
+            <MaterialCommunityIcons name="database-clock" size={16} color="#2196F3" />
+            <Text style={styles.cacheText}>Presiona refrescar para actualizar</Text>
+          </View>
+        )}
 
         {/* Timestamp */}
         <View style={styles.timestampContainer}>
@@ -1100,5 +1198,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#E65100",
     lineHeight: 20,
+  },
+  // Estilos para cache indicator
+  cacheIndicator: {
+    backgroundColor: "#E3F2FD",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    borderLeftWidth: 3,
+    borderLeftColor: "#2196F3",
+  },
+  cacheText: {
+    fontSize: 13,
+    color: "#1976D2",
+    marginLeft: 8,
+    flex: 1,
   },
 });
