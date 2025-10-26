@@ -14,6 +14,7 @@ import { useCallback } from "react";
 
 import {
   Pressable,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -37,6 +38,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const { state, setActive } = useProgress();
   const [progress, setProgress] = useState<RoadmapData | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -82,6 +84,51 @@ export default function HomeScreen() {
       loadRoadmapProgress();
     }, [user?.id])
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (!user?.id) return;
+
+      // Recargar el nombre del negocio
+      const { data: businessData, error: businessError } = await supabase
+        .from('businesses')
+        .select('businessName, id, roadmap_progress')
+        .eq('user_id', user.id)
+        .single();
+
+      if (businessError) {
+        console.error('Error recargando datos del negocio:', businessError);
+      } else {
+        if (businessData?.businessName) {
+          setNombreNegocio(businessData.businessName);
+        }
+
+        // Recargar el progreso del roadmap
+        if (businessData) {
+          const { data: stepsData } = await supabase
+            .from('business_roadmap')
+            .select('status')
+            .eq('business_id', businessData.id);
+
+          const totalSteps = stepsData?.length || 0;
+          const completedSteps = stepsData?.filter(s => s.status === 'done').length || 0;
+          const progressPercent = businessData.roadmap_progress || 0;
+
+          setProgress({
+            progressTitle: "Tu Progreso Fiscal",
+            completedSteps,
+            totalSteps,
+            progressPercent,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error al refrescar:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     async function fetchBusinessName() {
@@ -151,7 +198,20 @@ const cardData = [
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#E80000']} // Android
+            tintColor="#E80000" // iOS
+            title="Actualizando..." // iOS
+            titleColor="#666666" // iOS
+          />
+        }
+      >
         {/* Tarjeta de Bienvenida */}
         <View style={styles.card}>
           <Text style={styles.welcomeTitle}>
