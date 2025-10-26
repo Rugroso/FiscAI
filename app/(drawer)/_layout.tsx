@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logoutButtonPressed: {
-    backgroundColor: "#333333",
+    backgroundColor: "#E80000",
   },
   logoutText: {
     color: "white",
