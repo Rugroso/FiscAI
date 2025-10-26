@@ -14,6 +14,7 @@ import {
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from "@/supabase";
+import { useReload } from "./_layout";
 
 // Interfaces para el roadmap fiscal
 interface RoadmapStep {
@@ -63,6 +64,7 @@ interface BusinessData {
 export default function FullRoadmapScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  const { registerReloadHandler, unregisterReloadHandler } = useReload();
   
   const [loading, setLoading] = useState(true);
   const [roadmapData, setRoadmapData] = useState<RoadmapData | null>(null);
@@ -72,6 +74,13 @@ export default function FullRoadmapScreen() {
 
   useEffect(() => {
     loadRoadmap();
+    
+    // Registrar handler de recarga
+    registerReloadHandler(handleRefresh);
+    
+    return () => {
+      unregisterReloadHandler();
+    };
   }, [user?.id]);
 
   // Generar hash de los datos del negocio para detectar cambios
@@ -296,20 +305,6 @@ export default function FullRoadmapScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{roadmapData.title || 'Roadmap Fiscal'}</Text>
-        <TouchableOpacity onPress={handleRefresh} disabled={isRefreshing}>
-          <MaterialCommunityIcons 
-            name="refresh" 
-            size={24} 
-            color={isRefreshing ? "#CCCCCC" : "#000000"} 
-          />
-        </TouchableOpacity>
-      </View>
-
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -509,21 +504,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#000000",
   },
   loadingContainer: {
     flex: 1,

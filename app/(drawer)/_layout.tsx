@@ -47,17 +47,31 @@ const customTitles: Record<string, string> = {
 };
 
 export default function Layout() {
+  const router = useRouter();
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Drawer
         screenOptions={({ route }: { route: { name: string } }) => ({
-          headerShown: Object.keys(customTitles).includes(route.name),
-          title: customTitles[route.name] || route.name,
-          headerLeft: () => (
-            <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 10 }}>
-              <CustomDrawerButton />
-            </View>
-          ),
+          headerShown: Object.keys(customTitles).includes(route.name) || route.name === "actualizarDatos",
+          title: customTitles[route.name] || (route.name === "actualizarDatos" ? "Actualizar Datos" : route.name),
+          headerLeft: () => {
+            if (route.name === "actualizarDatos") {
+              return (
+                <TouchableOpacity 
+                  style={{ marginLeft: 10 }}
+                  onPress={() => router.back()}
+                >
+                  <MaterialCommunityIcons name="arrow-left" size={24} color="#000000" />
+                </TouchableOpacity>
+              );
+            }
+            return (
+              <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 10 }}>
+                <CustomDrawerButton />
+              </View>
+            );
+          },
         })}
         drawerContent={() => <CustomDrawerContent />}
       />

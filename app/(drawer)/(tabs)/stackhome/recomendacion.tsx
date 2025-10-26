@@ -594,6 +594,13 @@ export default function InformalScreen() {
   if (error || !data) {
     return (
       <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <MaterialIcons name="arrow-back" size={24} color="#000000" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Recomendación Fiscal</Text>
+          <View style={{ width: 24 }} />
+        </View>
         <View style={styles.errorContainer}>
           <MaterialCommunityIcons name="alert-circle" size={60} color="#FF0000" />
           <Text style={styles.errorText}>{error || "Error al cargar datos"}</Text>
@@ -607,6 +614,21 @@ export default function InformalScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <MaterialIcons name="arrow-back" size={24} color="#000000" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Recomendación Fiscal</Text>
+        <TouchableOpacity onPress={handleRefresh} disabled={isRefreshing}>
+          <MaterialCommunityIcons 
+            name="refresh" 
+            size={24} 
+            color={isRefreshing ? "#CCCCCC" : "#000000"} 
+          />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView 
         style={styles.scrollView} 
         showsVerticalScrollIndicator={false}
@@ -801,6 +823,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F5F5F5",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#000000",
   },
   loadingContainer: {
     flex: 1,
