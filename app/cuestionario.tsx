@@ -1,12 +1,19 @@
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 // import { supabase } from "../lib/supabase";
 
 const questions = [
   { id: 1, text: "Inserta el nombre de tu negocio", key: "businessName", placeholder: "Ej. Taquería Los Primos", type: "text" },
   { id: 2, text: "¿Cuál es tu actividad o giro principal?", key: "actividad", placeholder: "Ej. Diseñador gráfico freelance", type: "text" },
-  
+
   { id: 3, text: "Ingresos mensuales", key: "monthly_income", placeholder: "Ej. 14000", type: "number" },
   { id: 4, text: "Gastos mensuales", key: "monthly_expenses", placeholder: "Ej. 12000", type: "number" },
   {
@@ -68,14 +75,14 @@ const questions = [
       { label: "Siempre (mi negocio depende mucho de internet)", value: 1 },
     ],
   },
-  
+
   { id: 12, text: "¿Qué métodos de pago aceptas?", key: "metodos_pago", placeholder: "Ej. transferencia, efectivo, tarjeta", type: "text" },
   { id: 13, text: "¿Tienes RFC?", key: "has_rfc", type: "boolean" },
   { id: 14, text: "¿Tienes e.firma?", key: "has_efirma", type: "boolean" },
   { id: 15, text: "¿Emites CFDI?", key: "emite_cfdi", type: "boolean" },
   { id: 16, text: "¿Declaras impuestos de forma mensual?", key: "declara_mensual", type: "boolean" },
   { id: 17, text: "¿Tienes acceso a crédito?", key: "access_to_credit", type: "boolean" },
-  { id: 18, text: "¿Su negocio es formal?", key: "formal", type: "boolean" },
+  { id: 18, text: "¿Tu negocio es formal?", key: "formal", type: "boolean" },
 ];
 
 export default function Cuestionario() {
@@ -96,10 +103,6 @@ export default function Cuestionario() {
         return;
       }
       value = parsed;
-    }
-
-    if (type === "boolean") {
-      value = value === true;
     }
 
     const updated = { ...answers, [key]: value };
@@ -132,7 +135,6 @@ export default function Cuestionario() {
 
   const currentQuestion = questions[current];
   const total = questions.length;
-  const remaining = total - (current + 1);
 
   return (
     <View style={styles.container}>
@@ -141,10 +143,10 @@ export default function Cuestionario() {
           Fisc<Text style={styles.logoAccent}>AI</Text>
         </Text>
 
-
         <Text style={styles.title}>Bienvenido</Text>
         <Text style={styles.subtitle}>{currentQuestion.text}</Text>
 
+        {/* Boolean questions */}
         {currentQuestion.type === "boolean" ? (
           <View style={styles.booleanContainer}>
             <TouchableOpacity
@@ -162,6 +164,23 @@ export default function Cuestionario() {
               <Text style={styles.booleanText}>No</Text>
             </TouchableOpacity>
           </View>
+
+        // Option-based questions
+        ) : currentQuestion.type === "options" ? (
+          <View style={{ marginTop: 20 }}>
+            {currentQuestion.options?.map((opt, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.optionButton}
+                onPress={() => handleNext(opt.value)}
+                disabled={loading}
+              >
+                <Text style={styles.optionText}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+        // Text/Number questions
         ) : (
           <>
             <TextInput
@@ -171,23 +190,22 @@ export default function Cuestionario() {
               onChangeText={setInput}
               keyboardType={currentQuestion.type === "number" ? "numeric" : "default"}
             />
-        
-        <View style={styles.lowerContainer}>
-            <Text style={styles.progressText}>
-            Pregunta {current + 1} de {total} 
-            </Text>
 
-            <TouchableOpacity
-              style={[styles.button, loading && { opacity: 0.5 }]}
-              onPress={() => handleNext()}
-              disabled={loading || !input.trim()}
-            >
-                
-              <Text style={styles.buttonText}>
-                {current === questions.length - 1 ? "Terminar" : "Siguiente"}
+            <View style={styles.lowerContainer}>
+              <Text style={styles.progressText}>
+                Pregunta {current + 1} de {total}
               </Text>
-            </TouchableOpacity>
-        </View>
+
+              <TouchableOpacity
+                style={[styles.button, loading && { opacity: 0.5 }]}
+                onPress={() => handleNext()}
+                disabled={loading || !input.trim()}
+              >
+                <Text style={styles.buttonText}>
+                  {current === questions.length - 1 ? "Terminar" : "Siguiente"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </>
         )}
       </View>
@@ -196,12 +214,12 @@ export default function Cuestionario() {
 }
 
 const styles = StyleSheet.create({
-    lowerContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginTop: 20,
-    },
+  lowerContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 20,
+  },
   container: {
     flex: 1,
     backgroundColor: "#ffffffff",
@@ -271,5 +289,18 @@ const styles = StyleSheet.create({
   booleanText: {
     color: "#fff",
     fontWeight: "bold",
+  },
+  optionButton: {
+    backgroundColor: "#f3f3f3",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    marginVertical: 5,
+  },
+  optionText: {
+    color: "#333",
+    fontSize: 16,
   },
 });
