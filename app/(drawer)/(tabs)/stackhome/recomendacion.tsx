@@ -238,17 +238,15 @@ export default function InformalScreen() {
       const ingresosAnuales = (businessData.monthly_income || 0) * 12;
 
       const profileData = {
-        profile: {
-          actividad: businessData.actividad || "Sin especificar",
-          ingresos_anuales: ingresosAnuales,
-          empleados: businessData.employees || 0,
-          metodos_pago: metodosPagoArray,
-          estado: user.location || "Sin especificar",
-          has_rfc: businessData.has_rfc || false,
-          has_efirma: businessData.has_efirma || false,
-          emite_cfdi: businessData.emite_cfdi || false,
-          declara_mensual: businessData.declara_mensual || false,
-        },
+        actividad: businessData.actividad || "Sin especificar",
+        ingresos_anuales: ingresosAnuales,
+        empleados: businessData.employees || 0,
+        metodos_pago: metodosPagoArray,
+        estado: user.location || "Sin especificar",
+        has_rfc: businessData.has_rfc || false,
+        has_efirma: businessData.has_efirma || false,
+        emite_cfdi: businessData.emite_cfdi || false,
+        declara_mensual: businessData.declara_mensual || false,
       };
 
       console.log('🚀 Enviando petición con datos reales:', profileData);
