@@ -13,9 +13,12 @@
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "comgooglemaps",
+          "googlemaps",
+          "comgooglemaps",
           "googlemaps"
         ]
-      }
+      },
+      "bundleIdentifier": "com.fiscai.app"
     },
     "android": {
       "adaptiveIcon": {
